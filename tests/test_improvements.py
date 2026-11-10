@@ -5,7 +5,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 from toolforge_pilot.core import Store,AiderAdapter,Engine,validate_plan
 from toolforge_pilot.profiles import profile,adapt_plan,context_check,ContextBudgetError,discover_models
 from toolforge_pilot.installations import InstallManager,InstallBlocked,validate_requirement,diagnose
@@ -77,6 +77,42 @@ class Improvements(unittest.TestCase):
             with self.assertRaises(InstallBlocked):manager.install({'manager':'choco','name':'git'})
         self.assertFalse(manager.records[-1]['success'])
         self.assertIn('fehlgeschlagen',(self.project/'README.md').read_text())
+    def test_pip_source_build_failure_retries_newer_wheel(self):
+        manager=InstallManager(self.project,sys.executable,{'allow_pip':True},threading.Event(),lambda x:None)
+        failed={'code':1,'reason':'','output':'Failed building wheel for Pillow\nRequiredDependencyException: zlib','seconds':1}
+        installed={'code':0,'reason':'','output':'Successfully installed Pillow','seconds':1}
+        with patch.object(InstallManager,'python',new_callable=PropertyMock,return_value='/fake/python'), \
+             patch('toolforge_pilot.installations.interpreter_version',return_value=(3,11)), \
+             patch('toolforge_pilot.installations.pypi_compatible_version',return_value='10.4.0'), \
+             patch('toolforge_pilot.installations.run_process',side_effect=[failed,installed]) as runner:
+            self.assertTrue(manager.install({'manager':'pip','name':'Pillow','version':'8.4.0'}))
+        self.assertEqual(manager.last_resolution['version'],'10.4.0')
+        self.assertEqual(manager.last_resolution['failed_version'],'8.4.0')
+        self.assertEqual(len(manager.records),2)
+        self.assertFalse(manager.records[0]['success'])
+        self.assertTrue(manager.records[1]['success'])
+        self.assertEqual(manager.records[1]['version'],'10.4.0')
+        self.assertIn('Pillow==10.4.0',' '.join(runner.call_args_list[1].args[0]))
+        self.assertIn('ausgewichen',manager.records[1]['note'])
+    def test_diagnose_pip_build_failure(self):
+        found=diagnose('ERROR: Failed building wheel for Pillow\nRequiredDependencyException: zlib')
+        self.assertEqual(found['kind'],'install_build')
+        self.assertEqual(found['package'],'Pillow')
+        self.assertIn('Wheel',found['question'])
+    def test_install_resolution_versions_plan(self):
+        from toolforge_pilot.simulation import DemoAdapter
+        store=Store(self.project,self.root/'state')
+        try:
+            plan=demo();plan['tasks'][0]['requirements']=[{'manager':'pip','name':'PIL','version':'8.4.0'}]
+            store.set_plan(plan)
+            engine=Engine(store,DemoAdapter(),sys.executable)
+            engine.apply_install_resolution(store.state['plan']['tasks'][0],{'package':'Pillow','version':'10.4.0','python':'3.11','reason':'Quelltext-Build fehlgeschlagen','source':'PyPI-Metadaten'})
+            row=store.state['plan']['tasks'][0]
+            self.assertEqual(row['requirements'][0]['version'],'10.4.0')
+            self.assertEqual(store.state['plan']['version'],plan['version']+1)
+            self.assertIn('10.4.0',row['instruction'])
+            self.assertTrue(store.state['plan_file'])
+        finally:store.close()
     def test_explicit_dependency_validation(self):
         plan=demo();plan['tasks'][0]['requirements']=[{'manager':'pip','name':'bad; command'}]
         with self.assertRaises(ValueError):validate_plan(plan)
@@ -88,7 +124,9 @@ class CheckPolicy(unittest.TestCase):
         from toolforge_pilot.installations import prepare_check
         for argv in (['python','-m','pip','install','pytest'], ['npm','ci'], ['choco','install','git'], ['npx','--yes','tsc']):
             with self.assertRaises(InstallBlocked): prepare_check(argv)
-        self.assertEqual(prepare_check(['npx','tsc','--noEmit']), ['npx','--no-install','tsc','--noEmit'])
+        # Force the plain npx path so the assertion is independent of an installed Node.js.
+        with patch('toolforge_pilot.installations.shutil.which',return_value=None):
+            self.assertEqual(prepare_check(['npx','tsc','--noEmit']), ['npx','--no-install','tsc','--noEmit'])
         self.assertEqual(prepare_check(['python','-m','pytest']), ['python','-m','pytest'])
     def test_completed_tasks_retained_on_model_change(self):
         plan=demo();plan['tasks'][0]['files']=['a.py','b.py','c.py']

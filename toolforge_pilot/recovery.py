@@ -15,6 +15,8 @@ def choose_strategy(reason,output):
 
 def safe_query(text):
     # Never send whole project logs/source: only recognized error class and public module name.
+    match=re.search(r'(?:Failed building wheel for|Could not build wheels? for) ([A-Za-z0-9._-]+)',text)
+    if match:return (match.group(1)+' Python wheel installation failed official documentation')[:120]
     match=re.search(r'No module named [\'"]?([A-Za-z_][\w.]*)',text)
     if match:return 'Python ModuleNotFoundError '+match.group(1)[:80]
     match=re.search(r'\b([A-Za-z]*(?:Error|Exception))\b',text)

@@ -6,11 +6,15 @@ Lokale Workbench mit Projektverwaltung, Editor, Aider-Pilot, geprüften Aufgaben
 
 1. Alten ToolForge-Server beenden. ZIP in einen neuen Programmordner entpacken.
 2. `Setup_ToolForge.cmd` ausführen. Erforderlich: Python 3.11 oder neuer und Internetzugang. Das Setup erstellt `.venv` für die Workbench und `.aider-venv` für Aider. Bei Bedarf lädt uv Python 3.12 für Aider. Eine echte Aider-Aufruf- und Optionsprüfung muss erfolgreich sein.
-3. `Start_ToolForge.cmd` oder `Start_ToolForge_Pilot.cmd` öffnen. Die Weboberfläche erscheint unter http://127.0.0.1:8000. Kein dauerhaftes CMD-Fenster; Zugriffslogs sind ausgeschaltet.
+3. `Start_ToolForge.cmd` oder `Start_ToolForge_Pilot.cmd` öffnen. Die Weboberfläche erscheint unter http://127.0.0.1:8000. In Chrome/Edge öffnet sich ein eigenes App-Fenster, das beim Beenden automatisch geschlossen wird. Kein dauerhaftes CMD-Fenster; Zugriffslogs sind ausgeschaltet.
 4. Bei Problemen `Start_ToolForge_Debug.cmd` verwenden; zusätzlich `runtime/startup.log` prüfen.
 5. Zum Beenden den Button oben in der UI oder `Stop_ToolForge.cmd` verwenden. Bei nicht reagierender API schreibt das Stoppskript eine instanzbezogene Wächterdatei. Ein vollständig eingefrorener Betriebssystemprozess erfordert den Taskmanager.
 
 Das Frontend ist fertig gebaut und mitgeliefert. Node.js ist für die normale Nutzung nicht nötig. Für Frontend-Entwicklung: `npm ci`, `npm run build` im Ordner frontend.
+
+## Deinstallation unter Windows
+
+`Deinstallieren_ToolForge.cmd` ausführen. Das Skript entfernt `.venv`, `.aider-venv`, `frontend/node_modules`, `frontend/dist`, `runtime` und Python-Caches. Auf Wunsch werden auch die gespeicherten ToolForge-Daten im Benutzerprofil (`%APPDATA%\ToolForgePilot`) gelöscht. Eigene Projektordner werden nie verändert. Anschließend den Programmordner manuell löschen. Ohne Rückfragen: `python uninstall_toolforge.py --yes`, Daten behalten: zusätzlich `--keep-data`.
 
 ## Vorhandene Projekte übernehmen
 
@@ -27,7 +31,7 @@ Die Entwicklungstabs stehen in dieser Reihenfolge: **Verbesserungen · Dateien &
 ### Neu in 0.8
 
 - Aider wird getrennt installiert und geprüft. Die manuelle Installation der drei Prüfwerkzeuge braucht keine allgemeine automatische pip-Freigabe mehr.
-- Verdeckter Serverstart, Beenden in der UI und Stoppskript; Debugstart bleibt vorhanden.
+- Verdeckter Serverstart; die UI öffnet in einem eigenen Chrome-/Edge-Fenster, das beim Beenden automatisch geschlossen wird. Andere Browser zeigen einen Hinweisbildschirm. Stoppskript und Debugstart bleiben vorhanden.
 - Aufgabenbezogene Dateibelege, abhängige Wiederholungsprüfungen und abschließende Integrationsprüfung. Kein pauschales Zurücksetzen aller erledigten Aufgaben.
 - Unabhängige Arbeit läuft bei Rückfragen weiter. Blockierungsgründe sind sichtbar; eingehende Antworten werden an der nächsten Aufgabengrenze priorisiert.
 - Ausstehende Pause zurücknehmen; Hinweiston mit Lautstärke und Stummschaltung.
@@ -35,6 +39,11 @@ Die Entwicklungstabs stehen in dieser Reihenfolge: **Verbesserungen · Dateien &
 - Dokumentgestützte Hilfe; Assistenzmodelle wechseln sequenziell und stellen das Arbeitsmodell wieder her.
 - Optionale DuckDuckGo-Suche und ausführliche Diagnosen. Die Schalter lassen sich in der Übersicht für den nächsten Durchlauf ändern. Pakete und Modellkonfiguration werden dadurch nicht freigegeben/geändert.
 - Fehlerabhängige Reparaturstrategien statt pauschaler Aufgabenverkleinerung.
+- Fehlgeschlagene Quelltext-Builds (z. B. Pillow unter Python 3.11 ohne zlib) werden automatisch über PyPI-Metadaten und optional die Websuche auf eine neuere Version mit passendem Wheel aufgelöst. Der Plan wird mit der geprüften Version neu versioniert und die Aufgabe erhält den Befund als Hinweis.
+- Ein Klick im Vorabcheck führt den kompletten Ablauf aus: Vorabcheck → Empfehlung übernehmen → Plan erstellen → Ausführung starten.
+- Kleine Kontextabweichungen (Rundung durch LM Studio) brechen den Vorabcheck nicht mehr ab; der tatsächlich geladene Wert wird als geprüftes Budget übernommen.
+- Drei bis sechs Kandidaten im Vorabcheck wählbar.
+- Deinstallationsskript für Umgebungen, Buildartefakte und optional Benutzerdaten.
 - Optionale Docker-Ausführung für Python, Prüfungen und Python-Workflowknoten; explizit gemeinsame interne Netzwerke.
 
 ## Dokumentation und Prüfbelege

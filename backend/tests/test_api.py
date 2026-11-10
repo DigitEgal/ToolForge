@@ -122,7 +122,7 @@ def test_generated_plan_saved_and_failure_visible(client,tmp_path):
     client.post(base+'/folder',json={'path':str(folder)})
     client.post(base+'/pilot/settings',json={'model':'test'})
     from toolforge_pilot.core import APP_ROOT
-    plan=json.loads((APP_ROOT/'examples/demo_plan.json').read_text())
+    plan=json.loads((APP_ROOT/'examples/demo_plan.json').read_text(encoding='utf-8'))
     with patch('backend.pilot_service.chat_plan',return_value=plan):
         assert client.post(base+'/pilot/generate',json={'goal':'Test'}).status_code==202
         for _ in range(100):
@@ -130,7 +130,7 @@ def test_generated_plan_saved_and_failure_visible(client,tmp_path):
             if not snap['busy']:break
             time.sleep(.02)
     assert snap['state']['plan']==plan
-    assert json.loads((folder/'.toolforge/active-plan.json').read_text())==plan
+    assert json.loads((folder/'.toolforge/active-plan.json').read_text(encoding='utf-8'))==plan
     with patch('backend.pilot_service.chat_plan',side_effect=ValueError('Model JSON invalid')):
         client.post(base+'/pilot/generate',json={'goal':'Test'})
         for _ in range(100):

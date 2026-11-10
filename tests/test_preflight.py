@@ -1,12 +1,13 @@
 import json
+import re
 import threading
 from unittest.mock import Mock, patch
 import pytest
-from toolforge_pilot.preflight import Studio, evaluate, suggest, signature
+from toolforge_pilot.preflight import Studio, evaluate, suggest, signature, MAX_CANDIDATES
 
 class FakeStudio:
     def __init__(self, bad=False): self.events=[]; self.bad=bad
-    def inventory(self): return [{'key':x,'type':'llm','max_context_length':32768} for x in ['a','b','judge']]
+    def inventory(self): return [{'key':x,'type':'llm','max_context_length':32768} for x in ['a','b','c','judge']]
     def check(self): pass
     def switch(self,key,context): self.events.extend(['unload','load:'+key]);return key
     def unload(self): self.events.append('unload')
@@ -14,7 +15,10 @@ class FakeStudio:
         self.events.append('chat:'+model)
         if model=='judge':
             assert '"model"' not in prompt
-            result={'winner':'nonexistent' if self.bad else 'S1','reason':'Konkretere Lösung.', 'scores':{'S1':90,'S2':80,'S3':70,'S4':60}}
+            ids=re.findall(r'"id":\s*"(S\d+)"',prompt)
+            scores={sid:90-10*(int(sid[1:])-1) for sid in ids}
+            winner='nonexistent' if self.bad else ('S1' if 'S1' in ids else (ids[0] if ids else 'S1'))
+            result={'winner':winner,'reason':'Konkretere Lösung.','scores':scores}
         else: result={'solution':'konkrete Lösung','checks':'Prüfen','limitations':'Stichprobe'}
         return {'response':json.dumps(result),'seconds':1,'finish_reason':'stop','usage':{}}
 
@@ -59,6 +63,24 @@ def test_wrong_loaded_context_rejected():
     studio.request=Mock(return_value={'instance_id':'new'})
     studio.instances=Mock(return_value=[{'id':'new','config':{'context_length':4096}}])
     with pytest.raises(ValueError,match='Kontext abweichend'):studio.switch('new',20000)
+
+def test_small_loaded_context_is_adopted():
+    studio=Studio('http://localhost:1234/v1','test');studio.unload=Mock()
+    studio.request=Mock(return_value={'instance_id':'new'})
+    studio.instances=Mock(return_value=[{'id':'new','config':{'context_length':20224}}])
+    assert studio.switch('new',20000)=='new'
+    assert studio.actual_context==20224
+
+def test_more_than_three_candidates_are_measured():
+    studio=FakeStudio();report,_=run(studio,candidates=['a','b','c'])
+    assert len(report['samples'])==6
+    assert report['verdict']['scores']['S6']>=0
+    assert report['recommendation']['model']=='a'
+    assert MAX_CANDIDATES>=6
+
+def test_more_than_six_candidates_rejected():
+    studio=FakeStudio()
+    with pytest.raises(ValueError,match='Kandidaten'):run(studio,candidates=['a','b','c','d','e','f','g'])
 
 def test_cancel_before_load():
     event=threading.Event();event.set()

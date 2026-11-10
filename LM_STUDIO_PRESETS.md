@@ -5,7 +5,7 @@
 1. LM Studio starten, lokalen Server aktivieren. Benötigt wird die Native REST API v1 mit `/api/v1/models`, `/load` und `/unload`. Andere Anwendungen am selben Modellserver während des Vergleichs pausieren.
 2. ToolForge über `Start_ToolForge_Pilot.cmd` öffnen, Projekt verbinden. Unter Einstellungen API-Adresse und gegebenenfalls Token speichern.
 3. Unter Aufgabenplan das konkrete Ziel eingeben. Für einen Quellenvergleich einen repräsentativen Text mit Anfang, Mitte, Ende und bekannten Prüfpunkten mitgeben.
-4. Im Modell-Vorabcheck ein Testprofil wählen und „Installierte Modelle prüfen & Kandidaten vorschlagen“ drücken. Bis zu drei Modelle sowie ein allgemeines Auswertungsmodell auswählen. Es werden nur tatsächlich vom Server gemeldete Modellschlüssel verwendet.
+4. Im Modell-Vorabcheck ein Testprofil wählen und „Installierte Modelle prüfen & Kandidaten vorschlagen“ drücken. Drei bis sechs Modelle sowie ein allgemeines Auswertungsmodell auswählen. Es werden nur tatsächlich vom Server gemeldete Modellschlüssel verwendet.
 5. Kontextbudget prüfen (Ausgangswert 20.000), optional zwei Temperaturen testen. Vorabcheck starten.
 6. Arbeitsproben, Laufzeit, Formatprüfung und Bewertung ansehen. „Empfehlung übernehmen & Modell laden“ drücken. Erst danach den Aufgabenplan erzeugen und die Entwicklung starten.
 

@@ -9,7 +9,7 @@ import time
 from toolforge_pilot.core import APP_ROOT, Store, Engine, AiderAdapter, atomic_json, data_root, fingerprint, project_path, progress, validate_plan
 from toolforge_pilot.profiles import profile, discover_models, adapt_plan, chat_plan
 from toolforge_pilot.simulation import DemoAdapter
-from toolforge_pilot.preflight import Studio, MODEL_LOCK, evaluate, suggest, signature
+from toolforge_pilot.preflight import Studio, MODEL_LOCK, evaluate, suggest, signature, context_compatible
 
 AIDER_PYTHON = APP_ROOT / '.aider-venv' / ('Scripts/python.exe' if os.name=='nt' else 'bin/python')
 DEFAULTS = {'aider_python': str(AIDER_PYTHON) if AIDER_PYTHON.is_file() else sys.executable, 'python': sys.executable, 'base': 'http://localhost:1234/v1', 'model': '', 'context_tokens': 20000,
@@ -213,20 +213,26 @@ class Session(AssistanceMixin):
         recommendation = dict(report['recommendation'])
         def work():
             self.phase = 'Empfohlenes Modell und Kontext laden …'
+            studio = self.studio()
             try:
-                ident = self.studio().switch(recommendation['model'], recommendation['context_tokens'])
-                values = {k:recommendation[k] for k in ('temperature','context_tokens','output_tokens')}
+                ident = studio.switch(recommendation['model'], recommendation['context_tokens'])
+                actual = getattr(studio, 'actual_context', None)
+                # Adopt the context LM Studio actually confirmed instead of the requested value.
+                if type(actual) is not int: actual = recommendation['context_tokens']
+                values = {'temperature':recommendation['temperature'], 'context_tokens':actual,
+                          'output_tokens':min(recommendation['output_tokens'], max(256, actual//4))}
                 values['model'] = ident
                 self.settings.update(values)
                 atomic_json(self.settings_path, self.settings)
+                report['recommendation']['context_tokens'] = actual
                 report['accepted_settings'] = values
                 report['accepted'] = True
                 atomic_json(self.preflight_path, report)
-                self.phase = 'Empfehlung übernommen. Plan kann erstellt werden.'
+                self.phase = f'Empfehlung übernommen. Geprüfter Kontext: {actual} Tokens. Plan kann erstellt werden.'
             except Exception:
                 report['accepted'] = False
                 atomic_json(self.preflight_path, report)
-                self.studio().unload()
+                studio.unload()
                 raise
         return self.background(work)
 
@@ -241,7 +247,8 @@ class Session(AssistanceMixin):
         if self.settings['base'] != report['base'] or any(self.settings[k] != v for k,v in expected.items()):
             raise ValueError('Einstellungen weichen von der Empfehlung ab. Empfehlung erneut übernehmen oder Vorabcheck wiederholen.')
         instances = self.studio().instances()
-        if len(instances) != 1 or instances[0]['id'] != expected['model'] or instances[0].get('config',{}).get('context_length') != expected['context_tokens']:
+        if (len(instances) != 1 or instances[0]['id'] != expected['model']
+                or not context_compatible(expected['context_tokens'], instances[0].get('config',{}).get('context_length'))):
             raise ValueError('Geladenes Modell/Kontext geändert. Empfehlung erneut übernehmen.')
 
     def generate(self, goal):

@@ -1,18 +1,49 @@
 """Local web entry point; no dependency installation during normal startup."""
 from pathlib import Path
 import json
+import os
 import socket
+import subprocess
 import sys
 import threading
 import time
 import traceback
 import uuid
-import os
 from urllib.request import urlopen
 import webbrowser
 
 ROOT = Path(__file__).resolve().parent
 URL = 'http://127.0.0.1:8000'
+
+
+def browser_candidates():
+    """Chromium browsers that support a dedicated --app window on Windows."""
+    if os.name != 'nt':
+        return []
+    folders = [os.environ.get('PROGRAMFILES'), os.environ.get('PROGRAMFILES(X86)'),
+               os.environ.get('LOCALAPPDATA')]
+    relatives = (r'Google\Chrome\Application\chrome.exe', r'Microsoft\Edge\Application\msedge.exe')
+    return [str(Path(folder) / relative) for folder in folders if folder
+            for relative in relatives if (Path(folder) / relative).is_file()]
+
+
+def open_ui(track):
+    """Open a tracked app window so ToolForge can close it again on shutdown."""
+    if os.environ.get('TOOLFORGE_NO_BROWSER') or track.get('stop') and track['stop'].is_set():
+        return
+    profile = ROOT / 'runtime' / 'browser-profile'
+    for executable in browser_candidates():
+        try:
+            profile.mkdir(parents=True, exist_ok=True)
+            track['process'] = subprocess.Popen(
+                [executable, '--app=' + URL, '--user-data-dir=' + str(profile), '--no-first-run',
+                 '--no-default-browser-check', '--window-size=1440,960'],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except OSError:
+            continue
+    # Unknown default browser: the UI then shows a closing hint instead.
+    webbrowser.open(URL)
 
 def is_toolforge():
     try:
@@ -20,6 +51,17 @@ def is_toolforge():
             return json.load(response).get('name') == 'ToolForge'
     except Exception:
         return False
+
+def close_ui(track):
+    track['stop'].set()
+    process = track.get('process')
+    if process and process.poll() is None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except Exception:
+            try: process.kill()
+            except Exception: pass
 
 def main():
     if sys.version_info < (3, 11): raise RuntimeError('Python 3.11 oder neuer erforderlich.')
@@ -36,9 +78,11 @@ def main():
         if is_toolforge():
             print('ToolForge läuft bereits. Browser wird geöffnet.');webbrowser.open(URL);return
         raise RuntimeError('Port 8000 ist durch eine andere Anwendung belegt. Diese beenden und erneut starten.')
+    track = {'process': None, 'stop': threading.Event()}
     def open_when_ready():
         for _ in range(100):
-            if is_toolforge(): webbrowser.open(URL);return
+            if track['stop'].is_set(): return
+            if is_toolforge(): open_ui(track);return
             time.sleep(.1)
     threading.Thread(target=open_when_ready, daemon=True).start()
     print('ToolForge Pilot 0.8 | ' + URL + '\nBeenden über die UI oder Stop_ToolForge.cmd.')
@@ -60,6 +104,7 @@ def main():
     threading.Thread(target=watch,daemon=True).start()
     try:server.run()
     finally:
+        close_ui(track)
         if info.exists() and json.loads(info.read_text()).get('instance')==instance:info.unlink()
         (runtime/('stop-'+instance)).unlink(missing_ok=True)
 

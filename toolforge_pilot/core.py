@@ -1,6 +1,7 @@
 """Validated plans, persistent state and process orchestration (no GUI imports)."""
 from __future__ import annotations
 import ctypes
+from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -222,8 +223,16 @@ class Store:
             self.state['message'] = 'Vorheriger Lauf unterbrochen. Zustand prüfen und bewusst fortsetzen.'
             self.save()
 
+    @contextmanager
     def connect(self):
-        return sqlite3.connect(self.db, timeout=10)
+        # sqlite3's own context manager commits but never closes; an open handle
+        # blocks project cleanup and deletion on Windows.
+        con = sqlite3.connect(self.db, timeout=10)
+        try:
+            with con:
+                yield con
+        finally:
+            con.close()
 
     def load(self):
         with self.connect() as con:
@@ -599,9 +608,17 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     for requirement in ([] if self.policy.get('sandbox') else task.get('requirements', [])):
                         token = json.dumps(requirement, sort_keys=True)
                         if token not in self.install_attempts:
-                            self.install_attempts.add(token); self.installer.install(requirement)
+                            self.install_attempts.add(token)
+                            try:
+                                self.installer.install(requirement)
+                            except InstallBlocked:
+                                # A failed attempt must not block corrected/replanned versions.
+                                self.install_attempts.discard(token)
+                                raise
+                            if self.installer.last_resolution:
+                                self.apply_install_resolution(task, self.installer.last_resolution)
                 except InstallBlocked as exc:
-                    self.question(task['id'], str(exc), str(exc)); continue
+                    self.question(task['id'], str(exc) + self.install_hint(task['id'], str(exc)), str(exc)); continue
                 self.update('CHECKING', 'Prüfe vorhandene Implementierung: ' + task['title'])
                 passed, report = self.checks(regression)
                 if passed and (task.get('adaptive_part') or task.get('context_part')):
@@ -814,20 +831,66 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
         self.update('READY', 'Planversion ' + str(plan['version']) + ': ' + str(len(steps)) + ' kleine Teilaufträge; ursprüngliche Gesamtprüfung bleibt erhalten.')
         return True
 
+    def apply_install_resolution(self, task, resolution):
+        """Version the plan with the wheel version proven by PyPI metadata/web research."""
+        from .adaptive import handoff
+        from .installations import IMPORTS
+        from .profiles import save_plan_version
+        s = self.store.state
+        if not s or 'plan' not in s: return
+        name = str(resolution.get('package', ''))
+        canonical = lambda value: IMPORTS.get(str(value), str(value)).lower()
+        changed = []
+        for entry in s['plan']['tasks']:
+            for requirement in entry.get('requirements', []):
+                if (requirement.get('manager') == 'pip'
+                        and canonical(requirement.get('name', '')) == canonical(name)):
+                    requirement['version'] = resolution['version']; changed.append(entry['id'])
+        s['plan'].setdefault('install_resolutions', []).append(
+            {**resolution, 'at': time.time(), 'tasks': changed})
+        hint = (f'Installationsbefund: {resolution["reason"]} Version {resolution["version"]} '
+                f'ist für Python {resolution["python"]} geprüft ({resolution["source"]}). '
+                'Diese Version in requirements verwenden und keinen Quelltext-Build erzwingen.')
+        task['instruction'] = (task.get('instruction', '').rstrip() + '\n\n' + hint).strip()
+        s['plan']['version'] += 1
+        s['plan_file'] = str(save_plan_version(self.store.project, s['plan'], getattr(self.adapter, 'model', 'unknown')))
+        atomic_json(self.store.log_root.parent / 'handoff.json', handoff(self.store.project, s['plan']['tasks'], s['tasks']))
+        self.update('READY', f'Installation gelöst: {name} {resolution["version"]} (Python {resolution["python"]}); Plan versioniert.')
+
+    def install_hint(self, task_id, error):
+        """Optional public web hints for an unsolved install failure; clearly marked unverified."""
+        if not self.policy.get('web_search'): return ''
+        from .recovery import safe_query, web_research
+        found = web_research(self.store.project, error, self.policy, task_id, query=safe_query(error))
+        if not found: return ''
+        try: rows = json.loads(found)
+        except ValueError: return ''
+        lines = [f'- {str(row.get("title", ""))[:120]}: {str(row.get("snippet", ""))[:300]}'
+                 for row in rows[:3] if isinstance(row, dict)]
+        return ('\n\nGefundene Hinweise (ungeprüft):\n' + '\n'.join(lines)) if lines else ''
+
     def auto_install(self, text):
         from .installations import diagnose, InstallBlocked
         diagnosis = diagnose(text)
-        manager = 'pip' if diagnosis['kind'] == 'missing_python' else 'npm' if diagnosis['kind'] == 'missing_npm' else None
+        manager = ('pip' if diagnosis['kind'] in ('missing_python', 'install_build')
+                   else 'npm' if diagnosis['kind'] == 'missing_npm' else None)
         if self.policy.get('sandbox'): return False
         if not manager or not diagnosis.get('package') or not self.installer.enabled(manager): return False
         requirement = {'manager': manager, 'name': diagnosis['package']}
         token = json.dumps(requirement, sort_keys=True)
         if token in self.install_attempts: return False
         self.install_attempts.add(token)
-        try: return self.installer.install(requirement, force=True)
+        try:
+            installed = self.installer.install(requirement, force=True)
         except InstallBlocked as exc:
+            self.install_attempts.discard(token)
             self.log('Automatische Installation nicht erfolgreich: ' + str(exc) + '\n')
             return False
+        if installed and self.installer.last_resolution and self.store.state and self.store.state.get('current'):
+            task = next((t for t in self.store.state['plan']['tasks']
+                         if t['id'] == self.store.state['current']), None)
+            if task: self.apply_install_resolution(task, self.installer.last_resolution)
+        return installed
 
     def failure_question(self, task_id, error):
         from .installations import diagnose

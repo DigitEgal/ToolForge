@@ -1,7 +1,7 @@
 # Modelle und Aufgaben
 
 ## Vorabcheck
-Im Aufgabenplan Ziel beschreiben, Testprofil wählen und installierte Modelle laden. Bis zu drei Kandidaten mit denselben Arbeitsproben vergleichen. Optional werden zwei Temperaturen erprobt. Ein allgemeines Modell bewertet die anonymisierten Proben; eine gültige Empfehlung wird erst nach Übernehmen aktiv. Vor jedem Modellwechsel werden vorhandene Instanzen entladen und der geladene Kontext überprüft. Details und alle 15 Modellvarianten: LM_STUDIO_PRESETS.md im Programmordner.
+Im Aufgabenplan Ziel beschreiben, Testprofil wählen und installierte Modelle laden. Drei bis sechs Kandidaten mit denselben Arbeitsproben vergleichen. Optional werden zwei Temperaturen erprobt. Ein allgemeines Modell bewertet die anonymisierten Proben; eine gültige Empfehlung wird erst nach Übernehmen aktiv. Kleine, durch LM Studio gerundete Kontextabweichungen werden übernommen und der tatsächlich geladene Wert als geprüftes Budget gespeichert. Vor jedem Modellwechsel werden vorhandene Instanzen entladen und der geladene Kontext überprüft. Die Schaltfläche „Automatisch: Vorabcheck → Empfehlung → Plan → Start“ führt den gesamten Ablauf nach der Kandidatenwahl in einem Klick aus. Details und alle 15 Modellvarianten: LM_STUDIO_PRESETS.md im Programmordner.
 20.000 Kontexttokens sind ein Ausgangswert, kein Qualitätsoptimum. Temperatur wird pro Modell/Anfrage gesetzt. Große Modelle oder Kontexte können mehr Speicher benötigen. Bei Ladefehlern nicht weitere Modelle zusätzlich laden. Assistenzanfragen für Hilfe/Verbesserungen stellen das vorherige Arbeitsmodell wieder her.
 
 ## Planen und Ausführen

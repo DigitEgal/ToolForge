@@ -75,6 +75,7 @@ export default function App() {
   const [pilotBusy, setPilotBusy] = useState(false); const [pilotError, setPilotError] = useState('');
   const [toast, setToast] = useState('');
   const [questions, setQuestions] = useState<string[]>([]);
+  const [shutdown, setShutdown] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null); const nameInput = useRef<HTMLInputElement>(null);
   const loadSequence = useRef(0); const detailSequence = useRef(0);
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem('toolforge-theme', theme); } catch { /* Private-mode storage may be unavailable. */ } }, [theme]);
@@ -121,6 +122,22 @@ export default function App() {
     finally { setPilotBusy(false); }
   }
   const filtered = projects.filter(p => !!p.archived===showArchived).filter(p => `${p.name} ${p.description}`.toLocaleLowerCase('de').includes(query.trim().toLocaleLowerCase('de')));
+  async function shutDown() {
+    if (!window.confirm('ToolForge beenden? Laufende Aufträge werden gestoppt. Ungespeicherte Editorentwürfe vorher speichern.')) return;
+    try { await api('/api/shutdown', { method: 'POST', body: '{}' }); }
+    catch (e) { setToast((e as Error).message); return; }
+    setShutdown(true);
+    // Browsers only allow closing windows opened by script; the overlay stays as fallback.
+    try { window.close(); } catch { /* Fallback below. */ }
+    window.setTimeout(() => { try { window.close(); } catch { /* Fallback below. */ } }, 400);
+  }
+  if (shutdown) return <div className="shutdown-screen" role="status">
+    <div className="shutdown-card"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><h1>ToolForge wurde beendet.</h1>
+      <p>Der lokale Server ist gestoppt. Du kannst dieses Browserfenster jetzt schließen.</p>
+      <button className="button primary" onClick={() => { try { window.close(); } catch { /* Browser blockiert das Schließen. */ } }}>Fenster schließen</button>
+      <p className="field-hint">Falls sich das Fenster nicht automatisch schließt, blockiert der Browser das Schließen per Skript. Schließe den Tab dann mit Strg+W.</p>
+    </div>
+  </div>;
   return <div className="app-shell">
     <a className="skip-link" href="#main">Zum Inhalt</a>
     <aside className="sidebar">
@@ -135,7 +152,7 @@ export default function App() {
       <div className="sidebar-bottom"><span className="local-dot" />Lokal auf deinem Rechner<span className="version">v0.8 · Pilot + Workbench</span></div>
     </aside>
     <div className="main-shell">
-      <header className="topbar"><button className="button secondary" onClick={()=>{if(window.confirm('ToolForge beenden? Laufende Aufträge werden gestoppt. Ungespeicherte Editorentwürfe vorher speichern.'))void api('/api/shutdown',{method:'POST',body:'{}'}).then(()=>setToast('ToolForge wird beendet. Dieses Browserfenster kann geschlossen werden.')).catch(e=>setToast(e.message));}}>ToolForge beenden</button><div><span className="breadcrumb">Workbench</span><span className="slash">/</span><strong>{view === 'projects' ? 'Projekte' : view === 'pilot' ? 'Entwicklungscockpit' : view==='help'?'Hilfe':'Entwicklungspfad'}</strong></div><div className="topbar-actions"><QuestionSound questions={questions} /><button className="icon-button" aria-label={theme === 'dark' ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'} title="Design wechseln" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div></header>
+      <header className="topbar"><button className="button secondary" onClick={()=>void shutDown()}>ToolForge beenden</button><div><span className="breadcrumb">Workbench</span><span className="slash">/</span><strong>{view === 'projects' ? 'Projekte' : view === 'pilot' ? 'Entwicklungscockpit' : view==='help'?'Hilfe':'Entwicklungspfad'}</strong></div><div className="topbar-actions"><QuestionSound questions={questions} /><button className="icon-button" aria-label={theme === 'dark' ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'} title="Design wechseln" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div></header>
       <main id="main" tabIndex={-1}>
         {view === 'help' ? <HelpPanel projects={projects}/> : view === 'pilot' && workspaceProject ? <PilotPanel key={workspaceProject.id} project={workspaceProject} onQuestions={setQuestions} onBack={()=>setView('projects')} onProject={project=>{setWorkspaceProject(project);setProjects(old=>old.map(p=>p.id===project.id?project:p));}} /> : view === 'projects' ? <>
           <section className="page-heading"><div><div className="eyebrow">VON DER IDEE ZUM EIGENEN TOOL</div><h1>Deine Projekte.</h1><p>Ein Platz für deine Ideen. Lokal gespeichert, bereit für den nächsten Schritt.</p></div><button className="button primary" onClick={openCreate}><Icon name="plus" />Neues Projekt</button></section>
