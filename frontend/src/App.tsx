@@ -206,7 +206,7 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main">Zum Inhalt</a>
     <aside className="sidebar">
-      <div className="brand-block"><div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><div>ToolForge<span>LOCAL WORKBENCH</span></div></div><DigitEgalLogo /></div>
+      <div className="brand-block"><div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><div>ToolForge<span>LOCAL WORKBENCH</span></div></div></div>
       <div className="workspace-label">DEIN ARBEITSBEREICH</div>
       <nav aria-label="Hauptnavigation">
         <button data-tour="nav-projects" className={view === 'projects' ? 'nav active' : 'nav'} onClick={() => setView('projects')} aria-current={view === 'projects' ? 'page' : undefined}><Icon name="grid" />Projekte<span className="nav-count">{projects.length}</span></button>

@@ -48,9 +48,9 @@ dialog{width:min(570px,calc(100vw - 32px));border:1px solid var(--line);backgrou
 
 /* V1.0: Marke, Projektgruppen, Listenansicht und gefuehrte Tutorials */
 .brand-block{display:flex;flex-direction:column;gap:9px}
-.digitegal{display:inline-flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.35px;color:var(--muted)}
-.digitegal svg{width:18px;height:18px;color:var(--accent)}
+.digitegal{display:inline-flex;align-items:center;gap:4px;font-size:9px;letter-spacing:.35px;color:var(--muted);text-decoration:none}
 .digitegal strong{color:var(--text);font-weight:650}
+.digitegal:hover strong,.digitegal:focus-visible strong{color:var(--accent);text-decoration:underline}
 .digitegal.compact{font-size:8px;margin-top:5px;opacity:.9}
 .toolbar-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .view-switch{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
