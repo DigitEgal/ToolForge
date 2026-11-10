@@ -1,0 +1,15 @@
+{
+  "python": "3.11.9",
+  "os": "Windows 10",
+  "node": "26.13.0",
+  "npm": "11.20.0",
+  "packages": {
+    "pytest": "9.2.0",
+    "fastapi": "0.128.8",
+    "httpx": "0.28.1",
+    "uvicorn": "0.54.0",
+    "pydantic": "2.12.5",
+    "starlette": "0.52.1"
+  },
+  "external_services": "LM Studio, Docker, real Aider runs and browser shutdown were not exercised; automated tests use simulated model and Docker responses"
+}

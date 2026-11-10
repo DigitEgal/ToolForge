@@ -1,4 +1,4 @@
-# LM Studio und Modell-Vorabcheck – ToolForge Pilot 0.7
+# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.0
 
 ## Bedienung
 
@@ -8,6 +8,9 @@
 4. Im Modell-Vorabcheck ein Testprofil wählen und „Installierte Modelle prüfen & Kandidaten vorschlagen“ drücken. Drei bis sechs Modelle sowie ein allgemeines Auswertungsmodell auswählen. Es werden nur tatsächlich vom Server gemeldete Modellschlüssel verwendet.
 5. Kontextbudget prüfen (Ausgangswert 20.000), optional zwei Temperaturen testen. Vorabcheck starten.
 6. Arbeitsproben, Laufzeit, Formatprüfung und Bewertung ansehen. „Empfehlung übernehmen & Modell laden“ drücken. Erst danach den Aufgabenplan erzeugen und die Entwicklung starten.
+7. Alternativ „Automatisch: Vorabcheck → Empfehlung → Plan → Start“ verwenden. Der Ablauf übernimmt die Empfehlung, erzeugt den Plan und startet die Ausführung ohne weitere Klicks; Fehler werden an der jeweiligen Phase angezeigt.
+
+Kleine Abweichungen zwischen angeforderter und tatsächlich geladener Kontextgröße sind zulässig, wenn der geladene Wert höchstens `max(512, 2 %)` unter der Anforderung liegt. ToolForge übernimmt dann den tatsächlich geladenen Wert als geprüftes Budget. Deutlich kleinere Kontexte werden weiterhin abgewiesen.
 
 Die Weboberfläche enthält diese Funktion. Der separat startbare alte Tkinter-Desktop-Pilot enthält sie nicht. Bestehende Projekte ohne Vorabcheck können weiter manuell arbeiten. Sobald ein Vorabcheck begonnen wurde, ist für Planung/Start eine gültige übernommene Empfehlung erforderlich. Eine geänderte Aufgabenbeschreibung erfordert einen neuen Check vor der Planerstellung; geänderte Einstellungen oder ein extern gewechseltes Modell werden ebenfalls erkannt.
 

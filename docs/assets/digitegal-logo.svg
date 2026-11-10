@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64" role="img" aria-label="by DigitEgal">
+  <rect width="320" height="64" rx="14" fill="#171920"/>
+  <g transform="translate(18 14)" fill="#b8a3ff">
+    <path d="M5 5h10a11 11 0 0 1 0 22H5V5Zm6 5v12h4a6 6 0 0 0 0-12h-4Z"/>
+    <path d="M22 9h5v14h-5z" opacity=".55"/>
+  </g>
+  <text x="60" y="30" fill="#a0a6b8" font-family="Inter,Segoe UI,sans-serif" font-size="11" letter-spacing="1.5">BY</text>
+  <text x="60" y="50" fill="#f1f2f8" font-family="Inter,Segoe UI,sans-serif" font-size="23" font-weight="700" letter-spacing="-.6">DigitEgal</text>
+</svg>

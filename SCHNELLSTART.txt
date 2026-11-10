@@ -1,13 +1,18 @@
-ToolForge Pilot 0.8
+ToolForge Pilot V1.0
 
 1. Bisherigen Server beenden und ZIP in neuen Programmordner entpacken.
 2. Setup_ToolForge.cmd ausführen (Python 3.11+, Internet nötig).
 3. Start_ToolForge.cmd öffnet die Webworkbench im Browser.
-4. Projekt öffnen und Arbeitsordner außerhalb des Programmordners verbinden.
-5. LM Studio starten; API/Modelle unter Einstellungen prüfen.
-6. Aufgabenplan -> Ziel -> Modell-Vorabcheck -> Empfehlung übernehmen -> Plan -> Start.
-7. Bestehende Tools über Entwicklungsbereich -> Verbesserungen erweitern.
+4. Beim ersten Start das UI-Tutorial durchgehen.
+5. Projekt öffnen und Arbeitsordner außerhalb des Programmordners verbinden.
+6. LM Studio starten; API/Modelle unter Einstellungen prüfen.
+7. Aufgabenplan -> Ziel -> Modell-Vorabcheck -> Empfehlung übernehmen -> Plan -> Start.
+8. Alternativ den Ein-Klick-Ablauf „Automatisch: Vorabcheck → Empfehlung → Plan → Start“ verwenden.
+9. Bestehende Tools über Entwicklungsbereich -> Verbesserungen erweitern.
+
+Projektgruppen und Kachel-/Listenansicht ordnen größere Projektbestände.
 
 Beenden: Button ToolForge beenden oder Stop_ToolForge.cmd.
+Deinstallieren: Deinstallieren_ToolForge.cmd (eigene Projektordner bleiben erhalten).
 Startproblem: Start_ToolForge_Debug.cmd und runtime/startup.log.
-Dokumentation: Hilfe in der UI, README.md, ABNAHME_V08.md, TESTBERICHT_V08.md.
+Dokumentation: Hilfe in der UI, README.md, ABNAHME_V10.md, TESTBERICHT_V10.md.

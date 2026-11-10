@@ -1,10 +1,14 @@
 # Start und Projekte
 
-## Einrichtung und Start
+## Einrichtung und Start (V1.0)
 Setup_ToolForge.cmd einmal nach dem Entpacken ausführen. Es installiert die Workbench in .venv und Aider getrennt in .aider-venv mit Python 3.12 über uv. Ein Internetzugang wird für Pakete und gegebenenfalls Python benötigt. Aider wird anschließend tatsächlich aufrufbar geprüft. Bei einem Fehler meldet das Setup keinen Erfolg.
 Start_ToolForge.cmd oder Start_ToolForge_Pilot.cmd öffnet den Browser; der Server läuft ohne dauerhaftes CMD-Fenster. Die kurzen Fenster der CMD-Startdatei können kurz sichtbar sein. Für Fehlersuche Start_ToolForge_Debug.cmd verwenden. Startfehler stehen auch in runtime/startup.log.
-ToolForge beenden in der oberen Leiste stoppt Jobs und Server. Stop_ToolForge.cmd dient als Ersatz bei hängender UI: Es sendet eine Stoppanforderung und verwendet bei unerreichbarer API eine instanzbezogene Stoppdatei. Ein vollständig eingefrorener Python-Prozess muss im Windows-Taskmanager beendet werden; andere Python-Prozesse werden von ToolForge niemals pauschal beendet.
+ToolForge beenden in der oberen Leiste stoppt Jobs und Server. Wurde die UI in einem von ToolForge gestarteten Chrome-/Edge-App-Fenster geöffnet, beendet ToolForge dieses Fenster mit. Andere Browser dürfen ein Skriptfenster nicht schließen; dort erscheint ein Abschlussbildschirm mit Hinweis. Stop_ToolForge.cmd dient als Ersatz bei hängender UI: Es sendet eine Stoppanforderung und verwendet bei unerreichbarer API eine instanzbezogene Stoppdatei. Ein vollständig eingefrorener Python-Prozess muss im Windows-Taskmanager beendet werden; andere Python-Prozesse werden von ToolForge niemals pauschal beendet.
 
-## Projekte
+## Projekte, Ansichten und Gruppen
 Projekt anlegen, öffnen und einen Arbeitsordner außerhalb des ToolForge-Programmordners verbinden. Vorhandene Dateien, Planversionen und Zustand werden eingelesen. Umbenennen und Archivieren ändern den Code nicht. Die Löschvorschau zeigt lokale Paketbereinigung und geteilte Umgebungen; Ordner werden wiederherstellbar verschoben. Globale Chocolatey-Pakete brauchen gesonderte Bestätigung.
+Über **Kacheln / Liste** wechselst du die Projektübersicht. Die Listenansicht ist für viele Projekte gedacht und zeigt pro Zeile die Projektgruppe. Über **Gruppen** legst du Projektgruppen an, benennst sie um oder löschst sie. Projekte verschiebst du in der Listenansicht oder in den Projektdetails; beim Löschen einer Gruppe bleiben alle Projekte erhalten und wechseln zu „Ohne Gruppe“.
+
+## Tutorials und Hilfe
+Beim ersten Start erscheint ein Willkommensfenster. Das UI-Tutorial führt mit abgedunkelter Oberfläche und hervorgehobenen Bereichen durch Projekte, Ansichten, Gruppen, Pilot, Entwicklungspfad, Hilfe, Ton und Beenden. Beim ersten Besuch des Entwicklungsbereichs startet das Entwickler-Tutorial; beide Tutorials lassen sich auf der Hilfeseite jederzeit erneut aufrufen. Die Hilfeseite enthält außerdem die Bedienungsdokumente und einen dokumentgestützten Hilfechat.
 Nach einem Versionswechsel den bisherigen Server beenden. Zum Übernehmen der Projektliste den alten Ordner backend/data vor dem Start in die neue Version kopieren. Den bisherigen Projekt-Arbeitsordner unverändert weiterverwenden. Zustandsdaten liegen zusätzlich unter AppData/ToolForgePilot; Aufgabenpläne und Diagnoseprotokolle im Projekt unter .toolforge.

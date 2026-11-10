@@ -41,6 +41,23 @@ class Project(ProjectInput):
     created_at: str
     folder_path: str | None = None
     archived: bool = False
+    group_id: str | None = None
+
+
+class GroupInput(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    name: str = Field(min_length=1, max_length=60)
+
+    @field_validator('name', mode='before')
+    @classmethod
+    def trim_name(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+class ProjectGroup(GroupInput):
+    id: str
+    created_at: str
+    project_count: int = 0
 
 
 class FolderInput(BaseModel):
@@ -64,7 +81,12 @@ class Database:
                     conn.execute('ALTER TABLE projects ADD COLUMN folder_path TEXT')
                 if 'archived' not in [row[1] for row in conn.execute('PRAGMA table_info(projects)')]:
                     conn.execute('ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0')
-                conn.execute('PRAGMA user_version=3')
+                if 'group_id' not in [row[1] for row in conn.execute('PRAGMA table_info(projects)')]:
+                    conn.execute('ALTER TABLE projects ADD COLUMN group_id TEXT')
+                conn.execute('''CREATE TABLE IF NOT EXISTS project_groups (
+                    id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT NOT NULL)''')
+                conn.execute('CREATE INDEX IF NOT EXISTS project_groups_created ON project_groups(created_at, id)')
+                conn.execute('PRAGMA user_version=4')
 
     def all(self):
         with closing(sqlite3.connect(self.path, timeout=10)) as conn:
@@ -81,9 +103,48 @@ class Database:
         with closing(sqlite3.connect(self.path, timeout=10)) as conn:
             with conn: conn.execute('UPDATE projects SET folder_path=? WHERE id=?', (path, ident))
 
-    def update(self, ident, name, archived):
+    def update(self, ident, name, archived, group_id=None):
         with closing(sqlite3.connect(self.path, timeout=10)) as conn:
-            with conn: conn.execute('UPDATE projects SET name=?, archived=? WHERE id=?', (name, int(archived), ident))
+            with conn: conn.execute('UPDATE projects SET name=?, archived=?, group_id=? WHERE id=?',
+                                    (name, int(archived), group_id, ident))
+
+    def groups(self):
+        with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute('''SELECT g.id, g.name, g.created_at, COUNT(p.id) AS project_count
+                FROM project_groups g LEFT JOIN projects p ON p.group_id = g.id
+                GROUP BY g.id ORDER BY g.created_at, g.id''').fetchall()
+            return [dict(row) for row in rows]
+
+    def group(self, ident):
+        with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute('''SELECT g.id, g.name, g.created_at, COUNT(p.id) AS project_count
+                FROM project_groups g LEFT JOIN projects p ON p.group_id = g.id
+                WHERE g.id = ? GROUP BY g.id''', (ident,)).fetchone()
+            return dict(row) if row else None
+
+    def create_group(self, name):
+        result = {'id': str(uuid4()), 'name': name,
+                  'created_at': datetime.now(timezone.utc).isoformat(timespec='microseconds')}
+        with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+            with conn:
+                conn.execute('INSERT INTO project_groups(id,name,created_at) VALUES (?,?,?)',
+                             (result['id'], result['name'], result['created_at']))
+        return {**result, 'project_count': 0}
+
+    def rename_group(self, ident, name):
+        with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+            with conn: conn.execute('UPDATE project_groups SET name=? WHERE id=?', (name, ident))
+        return self.group(ident)
+
+    def delete_group(self, ident):
+        with closing(sqlite3.connect(self.path, timeout=10)) as conn:
+            count = conn.execute('SELECT COUNT(*) FROM projects WHERE group_id=?', (ident,)).fetchone()[0]
+            with conn:
+                conn.execute('UPDATE projects SET group_id=NULL WHERE group_id=?', (ident,))
+                conn.execute('DELETE FROM project_groups WHERE id=?', (ident,))
+        return count
 
     def delete(self, ident):
         with closing(sqlite3.connect(self.path, timeout=10)) as conn:
@@ -136,7 +197,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         database.initialize()
         yield
         pilot.close()
-    app = FastAPI(title='ToolForge · lokale Workbench', version='0.8.0', lifespan=lifespan)
+    app = FastAPI(title='ToolForge · lokale Workbench', version='1.0.0', lifespan=lifespan)
     app.state.database = database
     app.state.pilot = pilot
     app.state.shutdown = None
@@ -185,6 +246,24 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     def create_project(payload: ProjectInput):
         return database.create(payload)
 
+    @app.get('/api/groups', response_model=list[ProjectGroup])
+    def groups():
+        return database.groups()
+
+    @app.post('/api/groups', response_model=ProjectGroup, status_code=201)
+    def create_group(payload: GroupInput):
+        return database.create_group(payload.name)
+
+    @app.patch('/api/groups/{group_id}', response_model=ProjectGroup)
+    def rename_group(group_id: str, payload: GroupInput):
+        if not database.group(group_id): raise HTTPException(404, 'Projektgruppe nicht gefunden.')
+        return database.rename_group(group_id, payload.name)
+
+    @app.delete('/api/groups/{group_id}')
+    def delete_group(group_id: str):
+        if not database.group(group_id): raise HTTPException(404, 'Projektgruppe nicht gefunden.')
+        return {'removed': True, 'projects_ungrouped': database.delete_group(group_id)}
+
     @app.get('/api/projects/{project_id}', response_model=Project)
     def get_project(project_id: str):
         project = database.get(project_id)
@@ -228,8 +307,10 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         row=get_project(ident)
         if row.get('folder_path') and pilot.get(row['folder_path']).busy: raise HTTPException(409, 'Lauf vor Verwaltungsänderungen stoppen.')
         name=data.get('name',row['name']); archived=data.get('archived',row['archived'])
+        group_id=data.get('group_id',row.get('group_id'))
         if not isinstance(name,str) or not 1<=len(name.strip())<=100 or type(archived)!=bool: raise ValueError('Name: 1–100 Zeichen; archived: bool.')
-        database.update(ident,name.strip(),archived); return database.get(ident)
+        if group_id is not None and (not isinstance(group_id,str) or not database.group(group_id)): raise ValueError('Projektgruppe nicht gefunden.')
+        database.update(ident,name.strip(),archived,group_id); return database.get(ident)
 
     @app.get('/api/projects/{ident}/deletion-preview')
     def deletion_preview(ident: str):
@@ -384,7 +465,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
 
     @app.get('/api/workbench')
     def workbench():
-        return {'name': 'ToolForge', 'version': '0.8.0', 'stage': 10, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
+        return {'name': 'ToolForge', 'version': '1.0.0', 'stage': 10, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
 
     dist = Path(static_dir or ROOT / 'frontend' / 'dist')
     if (dist / 'assets').is_dir():

@@ -21,6 +21,8 @@ def client(tmp_path, monkeypatch):
 def test_health_and_empty(client):
     assert client.get('/api/health').json()=={'status':'ok'}
     assert client.get('/api/projects').json()==[]
+    assert client.get('/api/groups').json()==[]
+    assert client.get('/api/workbench').json()['version']=='1.0.0'
 
 def test_create_get_list(client):
     result=client.post('/api/projects',json={'name':'  Test ü  ','description':'Beschreibung'})
@@ -99,6 +101,24 @@ def test_database_migration(tmp_path):
         con.execute("INSERT INTO projects VALUES ('old','Old','','2026-01-01T00:00:00+00:00')")
     Database(db).initialize()
     assert Database(db).get('old')['folder_path'] is None
+    assert Database(db).get('old')['group_id'] is None
+
+
+def test_project_groups_cluster_and_move(client):
+    group=client.post('/api/groups',json={'name':'  Buchhaltung  '})
+    assert group.status_code==201
+    group=group.json();assert group['name']=='Buchhaltung' and group['project_count']==0
+    project=client.post('/api/projects',json={'name':'Rechnungen'}).json()
+    assert project['group_id'] is None
+    moved=client.patch('/api/projects/'+project['id'],json={'group_id':group['id']})
+    assert moved.status_code==200 and moved.json()['group_id']==group['id']
+    assert client.get('/api/projects/'+project['id']).json()['group_id']==group['id']
+    assert client.get('/api/groups').json()[0]['project_count']==1
+    assert client.patch('/api/groups/'+group['id'],json={'name':'Finanzen'}).json()['name']=='Finanzen'
+    assert client.patch('/api/projects/'+project['id'],json={'group_id':'missing'}).status_code==422
+    deleted=client.delete('/api/groups/'+group['id']).json()
+    assert deleted=={'removed':True,'projects_ungrouped':1}
+    assert client.get('/api/projects/'+project['id']).json()['group_id'] is None
 
 def test_default_db_not_created_by_factory(tmp_path):
     before=DEFAULT_DB.exists()

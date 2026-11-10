@@ -56,7 +56,7 @@ def pypi_compatible_version(name, python=(3, 11)):
     """
     try:
         request = urllib.request.Request(PYPI_INDEX.format(urllib.parse.quote(name)),
-                                         headers={'User-Agent': 'ToolForge/0.8'})
+                                         headers={'User-Agent': 'ToolForge/1.0'})
         with urllib.request.urlopen(request, timeout=15) as response:
             data = json.load(response)
     except Exception:

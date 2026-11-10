@@ -18,7 +18,7 @@ async function request<T>(path: string, data?: unknown, method?: string): Promis
     return result as T;
   } finally { clearTimeout(timeout); }
 }
-export default function PilotPanel({project, onProject, onBack, onQuestions}: {project: Project; onProject: (project:Project)=>void; onBack:()=>void; onQuestions?:(questions:string[])=>void}) {
+export default function PilotPanel({project, onProject, onBack, onQuestions, developRequest=0, onDevelopOpened}: {project: Project; onProject: (project:Project)=>void; onBack:()=>void; onQuestions?:(questions:string[])=>void; developRequest?:number; onDevelopOpened?:()=>void}) {
   const base = `/api/projects/${project.id}/pilot`;
   const [snapshot,setSnapshot]=useState<Snapshot|null>(null);
   const [settings,setSettings]=useState<Settings|null>(null);
@@ -46,6 +46,7 @@ export default function PilotPanel({project, onProject, onBack, onQuestions}: {p
     const load=async()=>{try{if(active)await refresh();}catch(e){if(active)setError((e as Error).message);}};
     void load();const timer=setInterval(()=>void load(),1600);return()=>{active=false;clearInterval(timer);};
   },[project.id,project.folder_path]);
+  useEffect(()=>{if(developRequest>0){setTab('develop');onDevelopOpened?.();}},[developRequest]);
   async function action(fn:()=>Promise<void>){setPending(true);setError('');setNotice('');try{await fn();}catch(e){setError((e as Error).message || 'Verbindung fehlgeschlagen.');}finally{setPending(false);}}
   async function saveSettings(){if(!settings)return;const data=await request<Snapshot>(base+'/settings',settings);setSnapshot(data);setNotice('Einstellungen und Modellprofil gespeichert.');}
   function update<K extends keyof Settings>(key:K,value:Settings[K]){setSettings(old=>old?{...old,[key]:value}:old);}

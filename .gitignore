@@ -1,5 +1,11 @@
 .venv/
+.aider-venv/
 __pycache__/
 *.pyc
 .env
 .pytest_cache/
+frontend/node_modules/
+runtime/
+backend/data/
+setup-runtime.json
+*.db

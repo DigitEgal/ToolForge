@@ -45,3 +45,70 @@ dialog{width:min(570px,calc(100vw - 32px));border:1px solid var(--line);backgrou
 .shutdown-card h1 { margin: 6px 0 0; font-size: 24px; }
 .shutdown-card p { margin: 0; line-height: 1.6; color: var(--muted); }
 .shutdown-card .field-hint { font-size: 12px; }
+
+/* V1.0: Marke, Projektgruppen, Listenansicht und gefuehrte Tutorials */
+.brand-block{display:flex;flex-direction:column;gap:9px}
+.digitegal{display:inline-flex;align-items:center;gap:7px;font-size:9px;letter-spacing:.35px;color:var(--muted)}
+.digitegal svg{width:18px;height:18px;color:var(--accent)}
+.digitegal strong{color:var(--text);font-weight:650}
+.digitegal.compact{font-size:8px;margin-top:5px;opacity:.9}
+.toolbar-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.view-switch{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.view-switch button{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--muted);padding:8px 11px;font-size:11px}
+.view-switch button.active{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.view-switch svg{width:14px;height:14px}
+.compact-button{min-height:34px;padding:7px 12px;font-size:11px}
+.group-panel{padding:20px 24px}
+.group-panel .panel-title h2{font-size:16px}
+.group-panel>p{margin:8px 0 16px}
+.group-create{display:flex;gap:10px;max-width:620px;margin-bottom:16px}
+.group-create input{flex:1;min-width:0;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:10px 12px;font-size:12px}
+.group-list{display:grid;gap:8px}
+.group-row{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--panel2)}
+.group-row>span{display:grid;gap:2px;margin-right:auto;min-width:0}
+.group-row strong{font-size:12px;overflow-wrap:anywhere}
+.group-row small{font-size:10px}
+.group-row .text-button{padding:4px 2px}
+.danger-text{color:var(--danger)}
+.project-groups{display:grid;gap:30px}
+.project-group{display:grid;gap:14px}
+.group-heading{display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.group-heading h2{font-size:15px;overflow-wrap:anywhere}
+.group-empty{font-size:11px;color:var(--muted);padding:8px 0}
+.project-list{display:grid;gap:10px}
+.project-row{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;transition:border-color .15s}
+.project-row:hover{border-color:var(--accent)}
+.project-row-main{display:flex;align-items:center;gap:14px;flex:1;min-width:0;background:none;border:0;color:inherit;text-align:left;padding:4px}
+.project-row-text{display:grid;gap:3px;min-width:0;flex:1}
+.project-row-text strong{font-size:13px;overflow-wrap:anywhere}
+.project-row-text small{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.project-row-date{font-size:9px;color:var(--muted);white-space:nowrap}
+.project-row-main>svg{color:var(--muted);width:15px}
+.project-row-group{display:flex;align-items:center;gap:7px;font-size:9px;color:var(--muted);white-space:nowrap}
+.project-row-group select,.project-group-select select{background:var(--input);border:1px solid var(--line);border-radius:7px;color:var(--text);padding:7px 9px;font-size:11px;max-width:180px}
+.project-group-select{margin-top:20px}
+.project-group-select small{margin-top:7px;color:var(--muted);font-weight:400;line-height:1.5}
+.tutorial-launch .panel-title>div{display:grid;gap:6px}
+.tutorial-launch .panel-title p{font-size:12px;color:var(--muted);line-height:1.6;max-width:780px}
+.tour-layer{position:fixed;inset:0;z-index:2000;pointer-events:none}
+.tour-blocker{position:fixed;inset:0;z-index:2000;background:transparent;pointer-events:auto}
+.tour-dim{position:absolute;inset:0;background:rgba(5,7,12,.74);pointer-events:auto}
+.tour-spotlight{position:fixed;z-index:2001;border:2px solid var(--accent);border-radius:11px;box-shadow:0 0 0 9999px rgba(5,7,12,.74),0 0 0 5px rgba(184,163,255,.22);pointer-events:none;transition:all .18s ease}
+.tour-card{position:fixed;z-index:2002;width:360px;max-width:calc(100vw - 28px);background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 25px 90px #000a;pointer-events:auto}
+.tour-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.tour-count{font-size:9px;letter-spacing:1.2px;color:var(--accent);font-weight:650;text-transform:uppercase}
+.tour-top .text-button{padding:2px 0;font-size:10px}
+.tour-card h2{font-size:21px;margin-bottom:10px;letter-spacing:-.4px}
+.tour-card p{font-size:12px;line-height:1.65;color:var(--muted)}
+.tour-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}
+.welcome-layer{display:grid;place-items:center;pointer-events:auto}
+.welcome-card{position:relative;left:auto!important;top:auto!important;bottom:auto!important;text-align:center;justify-items:center;max-width:500px;display:grid;gap:10px;padding:34px}
+.welcome-card .welcome-mark{margin:0 auto 4px}
+.welcome-card p{max-width:420px}
+.welcome-card .tour-actions{justify-content:center;margin-top:14px}
+.dev-tour-button{margin-left:auto;border:0;background:transparent;color:var(--accent);font-size:10px;padding:8px 4px;align-self:center;white-space:nowrap}
+@media(max-width:900px){.project-toolbar{align-items:flex-start}.toolbar-left{width:100%}.project-row-date{display:none}}
+@media(max-width:720px){.project-toolbar .section-title{order:2}.toolbar-left{order:1}.search-group{order:3}.project-row{flex-wrap:wrap}.project-row-group{width:100%;justify-content:space-between;padding-left:6px}.tour-card{padding:18px}.tour-actions .button{flex:1}.group-create{flex-direction:column}.group-row{flex-wrap:wrap}}
+.tour-abort{position:fixed;z-index:2003;top:18px;right:18px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:20px;padding:9px 14px;font-size:11px;box-shadow:var(--shadow);pointer-events:auto}
+.tour-abort:hover{background:var(--panel2)}
+@media(max-width:720px){.tour-abort{top:10px;right:10px;font-size:10px;padding:8px 11px}}

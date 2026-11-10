@@ -1,5 +1,8 @@
 # Entwicklungsbereich
 
+## Einführung
+Beim ersten Öffnen des Entwicklungsbereichs startet ein eigenes Tutorial. Es erklärt die sechs Tabs in ihrer Arbeitsreihenfolge, die Live-Ausgabe und den Abbruch. Über die Hilfeseite oder den Tutorial-Knopf neben den Tabs lässt es sich erneut starten.
+
 ## Verbesserungen
 Textuelle Erweiterungen können auch während der Entwicklung eingereicht werden. Sie werden an der nächsten Aufgabengrenze geplant; wenn gerade eine andere Assistenzfunktion läuft, spätestens beim nächsten Start. Bestehende Aufgaben werden nicht gelöscht. Jede Erweiterung erhält neue IDs, Dateikonflikte werden über Abhängigkeiten verknüpft. Fehlerhafte Pläne ersetzen den Bestandsplan nicht.
 Für KI-Vorschläge die Bereiche Architektur, Codequalität, Funktionen, Darstellung, Geschwindigkeit, Tests und Sicherheit wählen. Ein allgemeines Modell kann vorgeschlagen oder manuell gewählt werden. Diese Vorauswahl ist keine objektive Rangliste. Der Analyseumfang nennt gelesene Ausschnitte und ausgelassene Dateien. Vorschläge einzeln markieren und bestätigen. Hat sich das Projekt inzwischen geändert, Analyse erneuern. Bei Fehlern eines Erweiterungsauftrags den korrigierten Wunsch erneut eingeben.

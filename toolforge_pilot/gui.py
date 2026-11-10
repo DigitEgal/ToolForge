@@ -35,7 +35,7 @@ class App:
             pass
         except (OSError, ValueError) as exc:
             self.settings = {}; self.settings_error = str(exc)
-        self.root.title('ToolForge Pilot · klassischer Desktop (0.8)')
+        self.root.title('ToolForge Pilot · klassischer Desktop (1.0)')
         width = min(1180, self.root.winfo_screenwidth() - 70)
         height = min(900, self.root.winfo_screenheight() - 90)
         self.root.geometry(f'{width}x{height}'); self.root.minsize(min(900, width), min(680, height))
