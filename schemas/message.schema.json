@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ToolForge Pilot Agentenmeldung v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "run_id",
+    "outcome"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "outcome": {
+      "enum": [
+        "changes_proposed",
+        "needs_input",
+        "blocked"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "answer_options": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requested_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "needs_input",
+              "blocked"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "question"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

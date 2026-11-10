@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "version": 1,
+  "goal": "Ein kleines Python-Textwerkzeug: Text normalisieren, per Kommandozeile verwenden und JSON exportieren.",
+  "demo": true,
+  "tasks": [
+    {
+      "id": "normalize",
+      "title": "Text normalisieren",
+      "instruction": "Erstelle texttool.py mit normalize_text(text: str) -> str. Entferne äußere Leerzeichen und wandle in Kleinbuchstaben um. Nicht-Strings sollen TypeError auslösen. Keine externen Abhängigkeiten.",
+      "depends_on": [],
+      "files": ["texttool.py"],
+      "acceptance": ["normalize_text('  HALLO  ') ergibt 'hallo'", "Leerer Text ergibt leeren Text", "Nicht-Strings lösen TypeError aus"],
+      "weight": 1,
+      "estimate": [1, 3],
+      "max_repairs": 3,
+      "checks": [{"argv": ["{python}", "{app}/acceptance/check_demo.py", "{project}", "normalize"], "cwd": ".", "timeout": 30}]
+    },
+    {
+      "id": "cli",
+      "title": "Kommandozeile ergänzen",
+      "instruction": "Erstelle cli.py. Aufruf: python cli.py \"  HALLO  \". Nutze normalize_text aus texttool.py und schreibe genau das normalisierte Ergebnis plus Zeilenumbruch nach stdout. Ohne Textargument soll die Anwendung einen Fehler mit Exit-Code ungleich 0 melden. Bestehende Funktionen erhalten.",
+      "depends_on": ["normalize"],
+      "files": ["texttool.py", "cli.py"],
+      "acceptance": ["CLI gibt hallo aus", "Fehlendes Textargument liefert Fehlerstatus"],
+      "weight": 1,
+      "estimate": [1, 3],
+      "max_repairs": 3,
+      "checks": [{"argv": ["{python}", "{app}/acceptance/check_demo.py", "{project}", "cli"], "cwd": ".", "timeout": 30}]
+    },
+    {
+      "id": "export",
+      "title": "JSON-Export ergänzen",
+      "instruction": "Erstelle exporter.py mit export_json(text, path). Schreibe UTF-8-JSON mit dem Feld text und dem über normalize_text normalisierten Wert. Lege fehlende Elternverzeichnisse NICHT automatisch an; dabei soll FileNotFoundError entstehen. Ein Verzeichnis als Dateiziel muss OSError auslösen. Dokumentiere diese Verwendung in README.md. Bestehende Funktionen erhalten.",
+      "depends_on": ["cli"],
+      "files": ["texttool.py", "exporter.py", "README.md"],
+      "acceptance": ["UTF-8-JSON enthält normalisierten Text", "Fehlender Elternordner löst FileNotFoundError aus", "Verzeichnis als Ziel löst OSError aus", "README erklärt den Export"],
+      "weight": 1,
+      "estimate": [1, 3],
+      "max_repairs": 3,
+      "checks": [{"argv": ["{python}", "{app}/acceptance/check_demo.py", "{project}", "export"], "cwd": ".", "timeout": 30}]
+    }
+  ]
+}

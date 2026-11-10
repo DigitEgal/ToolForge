@@ -1,0 +1,327 @@
+Implementiere im aktuellen Repository „ToolForge“, eine lokal laufende Vibe-Coding-Workbench.
+
+Erzeuge tatsächliche Dateiänderungen im von Aider vorgegebenen Bearbeitungsformat. Eine reine Planungsantwort oder im Chat dargestellte Beispieldateien erfüllen den Auftrag nicht.
+
+## 1. Produktziel
+
+ToolForge ermöglicht mir, Softwaretools auf Python-Basis und später mit weiteren Laufzeiten zu:
+
+- beschreiben und mit KI-Unterstützung erstellen,
+- manuell bearbeiten,
+- ausführen,
+- prüfen und testen,
+- mit Git versionieren,
+- visuell miteinander zu Workflows verbinden.
+
+Zielgruppe ist ein technisch erfahrener Einzelanwender, der diese Aufgaben über eine übersichtliche, moderne deutschsprachige GUI erledigen möchte.
+
+Der vollständige spätere Nutzerablauf lautet:
+
+Idee beschreiben → Anforderungen festlegen → Code erzeugen → Änderungen prüfen → Tests ausführen → Tool starten → Version sichern → Tool mit anderen Tools verbinden.
+
+Ein verbindliches Demonstrationsszenario für das fertige Produkt besteht aus drei verbundenen Tools:
+
+1. CSV-Datei einlesen und validieren.
+2. Datensätze anhand ausgewählter Felder deduplizieren.
+3. Bereinigte Daten als Excel-Datei exportieren.
+
+Dieses Szenario muss auch ohne konfigurierten KI-Anbieter ausführbar sein.
+
+## 2. Ausgangslage und Bestandsprüfung
+
+Das Repository kann leer sein oder bereits einen unvollständigen Entwurf enthalten.
+
+- Primäres Zielsystem: Windows 11.
+- Zusätzlich berücksichtigen: Linux.
+- Ausführung: lokal, mit Browser-GUI.
+- Nutzung: zunächst ein Anwender, keine Mehrbenutzerplattform.
+- Datenhaltung: lokal.
+- Die Grundfunktionen dürfen keinen Cloudzugang und keinen KI-Anbieter voraussetzen.
+
+Beachte vorhandene AGENTS.md-Dateien und Projektkonventionen.
+
+Prüfe zugängliche Dateien, bevor du bestehende Implementierungen änderst. Verlasse dich nicht auf eine README als Beweis, dass eine Funktion implementiert ist.
+
+Wenn benötigte bestehende Dateien nicht zugänglich sind, fordere ausschließlich diese Dateien mit ihren genauen Pfaden an. Behaupte keine Bestandsprüfung, die du nicht durchführen konntest.
+
+Neue Dateien und Verzeichnisse innerhalb des Repositorys darfst du ohne Rückfrage anlegen. Erhalte Nutzeränderungen und bereits funktionierende Funktionen. Lösche keine vorhandene Implementierung, nur um einen einfacheren Neustart zu ermöglichen.
+
+## 3. Technischer Rahmen
+
+Wenn keine geeignete bestehende Architektur vorliegt, verwende:
+
+- Backend: Python mit FastAPI und Uvicorn.
+- Datenmodelle und Eingabevalidierung: Pydantic.
+- Datenbank: SQLite über das Python-Standardmodul sqlite3.
+- Frontend: React mit TypeScript und Vite.
+- Gestaltung der ersten Etappe: strukturiertes CSS mit Designvariablen für Farben, Abstände und Typografie.
+- Backendtests: pytest und FastAPI TestClient mit den erforderlichen Abhängigkeiten.
+- Frontendprüfung: TypeScript-Prüfung und Produktionsbuild.
+
+Verwende zusammenpassende Abhängigkeiten. Erfinde keine Versionsnummern, APIs oder erfolgreichen Installationen.
+
+Halte die Architektur modular, ohne unnötige Abstraktionen einzuführen. Trenne mindestens API, Datenhaltung und Benutzeroberfläche.
+
+Die spätere Architektur muss Erweiterungen für Codeeditor, Ausführungsprozesse, Qualitätsprüfungen, Git, KI-Anbieter und Workflows ermöglichen. Installiere deren Abhängigkeiten erst, wenn die jeweilige Etappe umgesetzt wird.
+
+## 4. Gesamtumfang des Produkts
+
+Dokumentiere diese Etappen in IMPLEMENTATION_PLAN.md. Sie beschreiben das Gesamtprodukt und sollen nicht alle in diesem ersten Auftrag umgesetzt werden.
+
+### Etappe 1: Projektverwaltung und moderne GUI
+Projektanlage, persistente Projektübersicht, Projektdetails, Eingabevalidierung, funktionierende Backend-Anbindung und dokumentierter Start.
+
+### Etappe 2: Entwicklungsarbeitsbereich
+Projektbezogener Dateibaum, Monaco-Codeeditor, Dateien erstellen und bearbeiten, Speichern, Anzeige ungespeicherter Änderungen und Schutz vor unbeabsichtigtem Datenverlust.
+
+Die Dateiverwaltungs-API muss Zugriffe auf freigegebene Projektverzeichnisse begrenzen und Path Traversal verhindern.
+
+### Etappe 3: Python-Tools ausführen
+Eigene virtuelle Umgebung pro Projekt, deklarierte Abhängigkeiten, bewusste Installation, getrennte Ausführungsprozesse, Start und Abbruch, Zeitlimits, Live-Logs, Exit-Code, Laufzeit und gespeicherter Ausführungsverlauf.
+
+Berücksichtige Kindprozesse beim Abbruch. Eine virtuelle Umgebung darf nicht als Sicherheits-Sandbox dargestellt werden. Eine zusätzliche Container-Ausführung ist eine spätere Erweiterung.
+
+### Etappe 4: Prüfen und Testen
+pytest, Ruff und eine geeignete Python-Typprüfung. Verständliche Befunde mit Datei- und Zeilenbezug.
+
+Unterscheide erfolgreich, fehlgeschlagen, nicht ausgeführt und nicht verfügbar. Verknüpfe Ergebnisse mit dem geprüften Codezustand und kennzeichne veraltete Ergebnisse nach Codeänderungen.
+
+### Etappe 5: Git-Versionierung
+Status, Diffs, gezielte Dateiauswahl für Commits, Commit-Historie, Branches und Versionstags.
+
+Erhalte ungesicherte Änderungen. Destruktive Aktionen benötigen eine ausdrückliche Bestätigung in der GUI. Remote-Push und Veröffentlichung erfolgen nicht automatisch.
+
+### Etappe 6: KI-Unterstützung
+Konfigurierbare OpenAI-kompatible HTTP-Endpunkte, beispielsweise für lokale Modellserver, sowie ein Ollama-Adapter.
+
+Unterstütze Verbindungstest, Modellwahl, Projektchat, gezielte Kontextauswahl, nachvollziehbare Änderungsvorschläge als Diff und kontrollierte Übernahme.
+
+Ermögliche begrenzte Reparaturversuche anhand tatsächlicher Prüfausgaben. Tests dürfen nicht abgeschwächt werden, um Fehler zu verdecken.
+
+Geheimnisse und ausgeschlossene Dateien dürfen nicht automatisch in Modellkontext, Logs oder Git gelangen. Ohne KI-Anbieter bleiben die übrigen Funktionen nutzbar.
+
+Aider ist das Entwicklungswerkzeug für dieses Projekt. ToolForge muss selbst keine Aider-Laufzeitabhängigkeit besitzen.
+
+### Etappe 7: Tools visuell verbinden
+Versionierte Tool-Manifeste mit ID, Version, Laufzeit, Einstiegspunkt, Abhängigkeiten, Zeitlimit sowie JSON-Schemas für Ein- und Ausgaben.
+
+Visueller Workflow-Editor mit Tool-Knoten, Feldzuordnungen, Parameterformularen, Validierung und tatsächlicher Ausführung.
+
+Unterstütze zunächst gerichtete, zyklenfreie Workflows. Lehne Zyklen verständlich ab. Validiere Daten zusätzlich zur Laufzeit.
+
+Verwende verwaltete Artefaktreferenzen für Dateien. Speichere pro Workflow-Lauf Parameter, Ergebnisse und verwendete Toolversionen beziehungsweise Code-Fingerprints.
+
+Bei Fehlern bleiben Logs erhalten; abhängige Knoten werden nicht gestartet. Wiederholungen von Aktionen mit Seiteneffekten dürfen nicht ungefragt erfolgen.
+
+Python ist die erste vollständig unterstützte Laufzeit. Weitere Laufzeiten werden später über Adapter ergänzt.
+
+### Etappe 8: Produktfertigstellung
+Vollständiger CSV-Deduplizierungs-Excel-Workflow, durchgängige Tests, konsistente Fehlerbehandlung, zugängliche GUI, Windows- und Linux-Startskripte sowie reproduzierbare Installation und aktuelle Dokumentation.
+
+Das Gesamtprodukt ist erst fertig, wenn alle Etappen umgesetzt und anhand ihrer Abnahmekriterien überprüft wurden.
+
+## 5. Aktueller Arbeitsauftrag: ausschließlich Etappe 1
+
+Erstelle jetzt eine tatsächlich startbare Anwendung mit moderner GUI und persistenter Projektverwaltung.
+
+Implementiere noch keinen Codeeditor, keine Toolausführung, keine Git-Oberfläche, keine KI-Anbindung und keinen Workflow-Editor. Erzeuge dafür auch keine funktionslosen Schaltflächen.
+
+### 5.1 Projektmodell
+
+Ein Projekt enthält:
+
+- id: UUID als String
+- name: nach Entfernen äußerer Leerzeichen 1 bis 100 Zeichen
+- description: optional, standardmäßig leer, maximal 2.000 Zeichen
+- created_at: UTC-Zeitstempel im ISO-8601-Format
+
+Identische Projektnamen sind zulässig; die UUID stellt die Identität sicher.
+
+Ein Projekt ist in dieser Etappe zunächst ein Metadatensatz. Projektordner und Codeverwaltung folgen in Etappe 2.
+
+### 5.2 SQLite-Speicherung
+
+- Speichere die reguläre Datenbank unter backend/data/toolforge.db.
+- Ermittle den Standardpfad relativ zur Backend-Datei.
+- Erstelle Verzeichnis und Tabelle automatisch beim Start.
+- Verwende parametrisierte SQL-Abfragen.
+- Schließe Verbindungen zuverlässig.
+- Nutze eine App-Factory oder eine vergleichbar einfache Möglichkeit, den Datenbankpfad für Tests zu konfigurieren.
+- Versioniere keine lokalen Datenbankdateien.
+
+### 5.3 Backend-API
+
+Implementiere:
+
+- GET /api/health  
+  Liefert HTTP 200 und {"status": "ok"}.
+
+- POST /api/projects  
+  Akzeptiert Name und Beschreibung, speichert das Projekt und liefert HTTP 201 mit dem gespeicherten Datensatz.
+
+- GET /api/projects  
+  Liefert eine JSON-Liste aller Projekte, neueste zuerst. Verwende eine stabile zusätzliche Sortierung bei identischen Zeitstempeln.
+
+- GET /api/projects/{project_id}  
+  Liefert das Projekt oder HTTP 404 bei unbekannter ID.
+
+Ungültige Eingaben liefern HTTP 422. Verwende passende Eingabe- und Antwortmodelle.
+
+Erhalte oder ermögliche den direkten Start aus dem Repository-Stamm mit:
+
+python backend/main.py
+
+Binde das Backend standardmäßig an 127.0.0.1:8000.
+
+### 5.4 Moderne Benutzeroberfläche
+
+Erstelle eine deutschsprachige Oberfläche mit:
+
+- Kompakter Seitenleiste mit Produktname und aktivem Bereich „Projekte“
+- Klarer Kopfzeile mit Seitentitel und Aktion „Neues Projekt“
+- Projektkarten mit Name, Beschreibung und Erstellungsdatum
+- Suchfeld für Name und Beschreibung
+- Formular zur Projektanlage
+- Projektdetailansicht mit den gespeicherten Metadaten
+- Umschaltung zwischen dunklem und hellem Design
+- Lokal gespeicherter Designpräferenz
+
+Gestaltung:
+
+- Klare Systemschrift ohne verpflichtende externe Schriftanbieter
+- Konsistente Abstände und Komponenten
+- Dezente Akzentfarbe
+- Gute Lesbarkeit und Kontraste
+- Sichtbarer Tastaturfokus
+- Beschriftete Formularfelder
+- Responsive Darstellung bei kleineren Fenstern
+- Keine rein dekorativen Statistiken oder erfundenen Aktivitäten
+
+Verhalten:
+
+- Lade Projektdaten tatsächlich über die API.
+- Nach erfolgreicher Anlage erscheint das Projekt ohne vollständiges Neuladen in der Übersicht.
+- Verhindere doppelte Übermittlung, solange die Anfrage läuft.
+- Zeige Validierungsfehler am Formular.
+- Erhalte Formulareingaben bei Serverfehlern.
+- Zeige bei nicht erreichbarem Backend einen verständlichen Fehler und eine Wiederholen-Aktion.
+- Unterscheide „noch keine Projekte“ von „keine Suchtreffer“.
+- Verwende keine Beispieldaten als Ersatz für die Backend-Anbindung.
+- Biete keine Aktionen an, die noch nicht implementiert sind.
+
+### 5.5 Frontend-Backend-Verbindung
+
+- Das Frontend ruft relative /api-Pfade auf.
+- Konfiguriere den Vite-Entwicklungsserver auf 127.0.0.1:5173.
+- Nutze einen Proxy für /api auf http://127.0.0.1:8000.
+- Verwende strictPort, damit ein belegter Port als Fehler sichtbar wird und die dokumentierte Adresse nicht unbemerkt wechselt.
+- Öffne weder Frontend noch Backend standardmäßig im lokalen Netzwerk.
+- Aktiviere keine pauschale CORS-Freigabe für alle Ursprünge.
+
+## 6. Dateiänderungen und Bearbeitungsformat
+
+- Befolge exakt die Aider-Systemvorgaben für Dateiänderungen.
+- Erfinde kein eigenes Edit-Format.
+- Ersetze Dateiänderungen nicht durch Erklärungen oder Tutorials.
+- Vermeide zusätzliche beispielhafte Codeblöcke außerhalb des notwendigen Bearbeitungsformats.
+- Lies vorhandene Dateien, bevor du sie änderst.
+- Lege fehlende Dateien selbst an.
+- Überschreibe keine unbekannten bestehenden Inhalte.
+- Begrenze Änderungen auf Etappe 1 und die erforderliche Projektdokumentation.
+- Bevorzuge wenige verständliche Module gegenüber einer unnötig tiefen Verzeichnisstruktur.
+- Erstelle die README erst passend zur tatsächlichen Implementierung.
+
+Wenn der Auftrag nicht in eine Antwort passt, liefere ein zusammenhängendes Teilergebnis als tatsächliche Dateiänderungen und dokumentiere genau den nächsten Schritt. Reduziere dabei nicht stillschweigend den vereinbarten Umfang.
+
+## 7. Verbindliche Abnahmekriterien für Etappe 1
+
+Die Etappe ist erfolgreich, wenn:
+
+1. Backend und Frontend anhand der dokumentierten Befehle starten.
+2. Der Healthcheck HTTP 200 und den definierten JSON-Inhalt liefert.
+3. Die GUI bei leerer Datenbank einen verständlichen leeren Zustand zeigt.
+4. Ich ein Projekt über das Formular anlegen kann.
+5. Das Projekt unmittelbar in der Übersicht erscheint.
+6. Die Projektdetails die gespeicherten Angaben zeigen.
+7. Nach Neustart des Backends und Neuladen der Seite das Projekt weiterhin vorhanden ist.
+8. Leere, ausschließlich aus Leerzeichen bestehende und zu lange Namen abgelehnt werden.
+9. Eine Beschreibung über 2.000 Zeichen abgelehnt wird.
+10. Eine unbekannte Projekt-ID HTTP 404 liefert.
+11. Suche, Designumschaltung und Tastaturbedienung funktionieren.
+12. Bei nicht erreichbarem Backend ein verständlicher Fehler statt einer falschen Erfolgsmeldung erscheint.
+13. Tests ausschließlich temporäre Datenbanken verwenden.
+14. TypeScript-Prüfung und Frontend-Produktionsbuild erfolgreich sind.
+
+## 8. Prüfung und Fehlerbehebung
+
+Implementiere automatisierte Backendtests für:
+
+- Healthcheck
+- Projektanlage
+- Äußere Leerzeichen im Projektnamen
+- Projektliste
+- Einzelabruf
+- Unbekannte Projekt-ID
+- Ungültige Namen
+- Zu lange Beschreibung
+- Persistenz nach erneuter App-Initialisierung mit derselben temporären Datenbank
+
+Führe Backendtests, TypeScript-Prüfung und Frontend-Build tatsächlich aus, sofern die Umgebung dies ermöglicht.
+
+Prüfe den vollständigen GUI-Ablauf über Browserautomation, falls verfügbar. Andernfalls dokumentiere ihn ausdrücklich als ausstehende manuelle Prüfung mit konkreten Schritten.
+
+Behebe erkannte Fehler innerhalb des aktuellen Umfangs. Schwäche keine Anforderungen oder Tests ab, um einen Erfolg zu melden.
+
+Wenn du Befehle nicht ausführen kannst, liefere die genauen Befehle einschließlich Arbeitsverzeichnis und kennzeichne die Ergebnisse als ungeprüft.
+
+## 9. Dokumentation und Fortsetzung
+
+Erstelle beziehungsweise aktualisiere:
+
+PROJECT_SPEC.md
+- Gesamtziel
+- Kernabläufe
+- Architekturentscheidungen
+- Verbindlicher Gesamtumfang
+- Grenzen und spätere Erweiterungen
+
+IMPLEMENTATION_PLAN.md
+- Die acht Etappen
+- Konkrete Aufgaben und Abnahmekriterien pro Etappe
+- Zustände OFFEN, IN ARBEIT, IMPLEMENTIERT, GEPRÜFT und BLOCKIERT
+- Eine Etappe ist erst GEPRÜFT, wenn die zugehörigen Prüfungen tatsächlich bestanden wurden
+
+PROGRESS.md
+- Tatsächlich implementierter Stand
+- Ausgeführte Prüfungen und Ergebnisse
+- Ungeprüfte Punkte und bekannte Fehler
+- Gültige Startbefehle
+- Genau ein nächstes konkretes Arbeitspaket mit relevanten Dateipfaden
+
+README.md
+- Voraussetzungen
+- Installation unter Windows mit PowerShell
+- Backend- und Frontend-Start in zwei Terminals
+- Browseradresse http://127.0.0.1:5173
+- Testbefehle
+- Kurzer Linux-Hinweis
+- Tatsächlich vorhandene Funktionen
+- Noch ausstehende Funktionen
+
+Ergänze eine geeignete .gitignore unter Erhaltung vorhandener Einträge. Schließe insbesondere virtuelle Umgebungen, node_modules, Build-Ausgaben, lokale Datenbanken, Caches und Geheimnisse aus.
+
+## 10. Jetzt handeln
+
+Beginne mit einer kurzen Bestandsprüfung und implementiere danach unmittelbar Etappe 1.
+
+Beende deine Antwort nicht mit „Wir könnten“, „Als Nächstes würden wir“ oder einer bloßen Liste benötigter Dateien, wenn du die Dateien selbst anlegen kannst.
+
+Fasse nach den tatsächlichen Änderungen knapp zusammen:
+
+1. Was implementiert wurde.
+2. Wie ich die Anwendung starte.
+3. Welche Prüfungen tatsächlich bestanden wurden.
+4. Was ungeprüft oder offen bleibt.
+5. Welches konkrete Arbeitspaket als Nächstes folgt.
+
+Bezeichne Etappe 1 nicht als fertiges Gesamtprodukt.
