@@ -4,7 +4,7 @@ from __future__ import annotations
 import threading
 
 
-def start(open_url: str, shutdown, title: str = 'ToolForge V1.1'):
+def start(open_url: str, shutdown, title: str = 'ToolForge V1.2'):
     """Start a tray icon in a background thread; return False when pystray is absent."""
     try:
         import pystray

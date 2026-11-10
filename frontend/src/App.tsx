@@ -1,11 +1,12 @@
-import HelpPanel from './HelpPanel';
-import ProjectManager from './ProjectManager';
-import PilotPanel from './PilotPanel';
+import BrandMark from './BrandMark';
 import QuestionSound from './QuestionSound';
 import Tutorial, { TutorialWelcome, type TourMode } from './Tutorial';
 import DigitEgalLogo from './DigitEgalLogo';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+const HelpPanel = lazy(() => import('./HelpPanel'));
+const ProjectManager = lazy(() => import('./ProjectManager'));
+const PilotPanel = lazy(() => import('./PilotPanel'));
 
 type Project = { id: string; name: string; description: string; created_at: string; folder_path?: string | null; archived?:boolean; group_id?: string | null };
 type ProjectGroup = { id: string; name: string; created_at: string; project_count: number };
@@ -50,6 +51,7 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 function initialTheme(): 'dark' | 'light' { try { return localStorage.getItem('toolforge-theme') === 'light' ? 'light' : 'dark'; } catch { return 'dark'; } }
 function date(value: string) { return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(value)); }
+function PanelFallback({ label }: { label: string }) { return <div className="loading-state" role="status"><span className="spinner" />{label}</div>; }
 const stages = [
   ['Projektverwaltung', 'Projekte anlegen, durchsuchen und lokal speichern.'],
   ['Entwicklungsbereich', 'Dateibaum, Codeeditor und sicheres Speichern.'],
@@ -61,7 +63,8 @@ const stages = [
   ['Durchgängige Abnahme', 'CSV validieren, Duplikate entfernen und Excel exportieren.'],
   ['Docker-Sandbox', 'Projektbefehle optional im Container ausführen.'],
   ['Sandbox-Netzwerke', 'Gewählte Projektcontainer in einem internen Netz verbinden.'],
-  ['Analyse & Betrieb', 'Inkrementeller Index, Messreihen, Anwendungsabnahme, Graph, Presets und Sicherungen.']
+  ['Analyse & Betrieb', 'Inkrementeller Index, Messreihen, Anwendungsabnahme, Graph, Presets und Sicherungen.'],
+  ['Marke & Performance', 'Einheitliches Logo, konsolidierte Berichte und ein schnellerer Start durch geteilte Ladebereiche.']
 ];
 
 export default function App() {
@@ -219,7 +222,7 @@ export default function App() {
     return layout === 'grid' ? <div className="project-grid">{items.map((project, index) => projectCard(project, start + index))}</div> : <div className="project-list">{items.map((project, index) => projectRow(project, start + index))}</div>;
   }
   if (shutdown) return <div className="shutdown-screen" role="status">
-    <div className="shutdown-card"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><h1>ToolForge wurde beendet.</h1>
+    <div className="shutdown-card"><BrandMark /><h1>ToolForge wurde beendet.</h1>
       <p>Der lokale Server ist gestoppt. Du kannst dieses Browserfenster jetzt schließen.</p>
       <button className="button primary" onClick={() => { try { window.close(); } catch { /* Browser blockiert das Schließen. */ } }}>Fenster schließen</button>
       <p className="field-hint">Falls sich das Fenster nicht automatisch schließt, blockiert der Browser das Schließen per Skript. Schließe den Tab dann mit Strg+W.</p>
@@ -228,7 +231,7 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main">Zum Inhalt</a>
     <aside className="sidebar">
-      <div className="brand-block"><div className="brand"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span><div>ToolForge<span>LOCAL WORKBENCH</span></div></div></div>
+      <div className="brand-block"><div className="brand"><BrandMark /><div>ToolForge<span>LOCAL WORKBENCH</span></div></div></div>
       <div className="workspace-label">DEIN ARBEITSBEREICH</div>
       <nav aria-label="Hauptnavigation">
         <button data-tour="nav-projects" className={view === 'projects' ? 'nav active' : 'nav'} onClick={() => setView('projects')} aria-current={view === 'projects' ? 'page' : undefined}><Icon name="grid" />Projekte<span className="nav-count">{projects.length}</span></button>
@@ -236,7 +239,7 @@ export default function App() {
         <button data-tour="nav-help" className={view==='help'?'nav active':'nav'} onClick={()=>setView('help')}><Icon name="info"/>Hilfe</button>
       </nav>
       <section className="pilot-card"><div className="pilot-symbol"><Icon name="pilot" /></div><h2>Dein Pilot ist dabei.</h2><p>Aufgaben planen und Aider schrittweise arbeiten lassen.</p><button data-tour="pilot-open" className="button secondary" onClick={() => { const active=projects.find(p=>!p.archived);if(active){setWorkspaceProject(active);setView('pilot');}else{setToast('Lege zuerst ein Projekt an und verbinde einen Arbeitsordner.');} }}>Pilot öffnen<Icon name="arrow" /></button></section>
-      <div className="sidebar-bottom"><span className="local-dot" />Lokal auf deinem Rechner<span className="version">V1.1 · Pilot + Workbench</span><DigitEgalLogo compact /></div>
+      <div className="sidebar-bottom"><span className="local-dot" />Lokal auf deinem Rechner<span className="version">V1.2 · Pilot + Workbench</span><DigitEgalLogo compact /></div>
     </aside>
     <div className="main-shell">
       <header className="topbar"><button data-tour="shutdown" className="button secondary" onClick={()=>void shutDown()}>ToolForge beenden</button><div><span className="breadcrumb">Workbench</span><span className="slash">/</span><strong>{view === 'projects' ? 'Projekte' : view === 'pilot' ? 'Entwicklungscockpit' : view==='help'?'Hilfe':'Entwicklungspfad'}</strong></div><div className="topbar-actions" data-tour="topbar-actions"><QuestionSound questions={questions} /><button className="icon-button" aria-label={theme === 'dark' ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'} title="Design wechseln" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div></header>
@@ -246,7 +249,7 @@ export default function App() {
           <div><strong>{globalQuestions.length} offene Rückfrage{globalQuestions.length === 1 ? '' : 'n'}</strong><p>{globalQuestions.slice(0, 2).map(row => `${row.project}: ${row.title || row.task} — ${row.question}`).join(' · ')}</p></div>
           <button className="button secondary" onClick={() => { const target = projects.find(item => item.folder_path === globalQuestions[0].folder); if (target) { setWorkspaceProject(target); setView('pilot'); } else setToast('Projekt nicht in der Übersicht gefunden. Öffne es erneut.'); }}>Im Cockpit öffnen</button>
         </div>}
-        {view === 'help' ? <HelpPanel projects={projects}/> : view === 'pilot' && workspaceProject ? <PilotPanel key={workspaceProject.id} project={workspaceProject} developRequest={developRequest} onDevelopOpened={()=>setDevelopRequest(0)} onQuestions={setQuestions} onBack={()=>setView('projects')} onProject={project=>{setWorkspaceProject(project);setProjects(old=>old.map(p=>p.id===project.id?project:p));}} /> : view === 'projects' ? <>
+        {view === 'help' ? <Suspense fallback={<PanelFallback label="Hilfe wird geladen …" />}><HelpPanel projects={projects}/></Suspense> : view === 'pilot' && workspaceProject ? <Suspense fallback={<PanelFallback label="Entwicklungscockpit wird geladen …" />}><PilotPanel key={workspaceProject.id} project={workspaceProject} developRequest={developRequest} onDevelopOpened={()=>setDevelopRequest(0)} onQuestions={setQuestions} onBack={()=>setView('projects')} onProject={project=>{setWorkspaceProject(project);setProjects(old=>old.map(p=>p.id===project.id?project:p));}} /></Suspense> : view === 'projects' ? <>
           <section className="page-heading"><div><div className="eyebrow">VON DER IDEE ZUM EIGENEN TOOL</div><h1>Deine Projekte.</h1><p>Ein Platz für deine Ideen. Lokal gespeichert, bereit für den nächsten Schritt.</p></div><button data-tour="new-project" className="button primary" onClick={openCreate}><Icon name="plus" />Neues Projekt</button></section>
           <div className="project-toolbar" data-tour="project-toolbar">
             <div className="toolbar-left">
@@ -270,7 +273,7 @@ export default function App() {
           </div>}
           <footer className="workspace-note"><Icon name="info" /><span>Projekte, Code, Prüfungen, Git und Workflows – lokal in einer Workbench.</span></footer>
         </> : <>
-          <section className="page-heading"><div><div className="eyebrow">SCHRITT FÜR SCHRITT</div><h1>Der Entwicklungspfad.</h1><p>Ein klares Ziel. Elf überprüfbare Etappen.</p></div><span className="stage-badge">Etappen 1–11 integriert</span></section>
+          <section className="page-heading"><div><div className="eyebrow">SCHRITT FÜR SCHRITT</div><h1>Der Entwicklungspfad.</h1><p>Ein klares Ziel. Zwölf überprüfbare Etappen.</p></div><span className="stage-badge">Etappen 1–12 integriert</span></section>
           <div className="roadmap">{stages.map(([title, text], i) => <article className={i === 0 ? 'stage current' : 'stage'} key={title}><span className="stage-number">{i === 0 ? <Icon name="check" /> : String(i + 1).padStart(2, '0')}</span><div><h2>{title}</h2><p>{text}</p></div><span className="stage-status">{'Verfügbar'}</span></article>)}</div>
           <div className="roadmap-note"><Icon name="pilot" /><div><h2>Pilot und Workbench gehören zusammen.</h2><p>Der Pilot steuert die Entwicklungsaufträge. Die Workbench verwaltet deine Projekte. Arbeitsordner, Aufgabenpläne und Automatikläufe sind im Entwicklungscockpit integriert. Editor, Python-Jobs, Prüfungen, Git, KI-Vorschläge und visuelle Workflows stehen im Entwicklungsbereich bereit.</p></div></div>
         </>}
@@ -280,7 +283,7 @@ export default function App() {
     <dialog ref={dialog} onCancel={event => { event.preventDefault(); close(); }} onClose={() => setModal(null)} aria-labelledby="dialog-title">
       <div className="dialog-top"><span className="dialog-eyebrow">{modal === 'create' ? 'NEUES PROJEKT' : modal === 'pilot' ? 'TOOLFORGE PILOT' : 'PROJEKTDETAILS'}</span><button className="icon-button" onClick={close} disabled={saving || pilotBusy} aria-label="Dialog schließen"><Icon name="close" /></button></div>
       {modal === 'create' && <form onSubmit={create} noValidate><h2 id="dialog-title">Eine neue Idee beginnt hier.</h2><p className="dialog-lead">Name und Beschreibung werden lokal gespeichert.</p><label className="field">Projektname <span aria-hidden="true">*</span><input ref={nameInput} name="name" value={name} onChange={e => setName(e.target.value)} placeholder="Zum Beispiel: CSV-Assistent" required aria-invalid={!!errors.name} aria-describedby={errors.name ? 'name-error' : 'name-hint'} disabled={saving} /></label>{errors.name ? <p className="field-error" id="name-error" role="alert">{errors.name}</p> : <p className="field-hint" id="name-hint">1 bis 100 Zeichen. Gleiche Namen sind erlaubt.</p>}<label className="field description-field">Beschreibung <span className="optional">optional</span><textarea name="description" rows={5} value={description} onChange={e => setDescription(e.target.value)} placeholder="Was soll dein Tool später können?" aria-invalid={!!errors.description} aria-describedby={errors.description ? 'description-error' : 'description-hint'} disabled={saving} /></label><div className="field-meta"><span id="description-hint">Ein kurzer Überblick über dein Vorhaben.</span><span>{Array.from(description).length.toLocaleString('de')} / 2.000</span></div>{errors.description && <p className="field-error" id="description-error" role="alert">{errors.description}</p>}{errors.general && <div className="form-error" role="alert">{errors.general} Deine Eingaben bleiben erhalten.</div>}<div className="dialog-actions"><button type="button" className="button secondary" onClick={close} disabled={saving}>Abbrechen</button><button type="submit" className="button primary" disabled={saving}>{saving ? <><span className="spinner" />Wird angelegt …</> : <>Projekt anlegen<Icon name="arrow" /></>}</button></div></form>}
-      {modal === 'detail' && <><h2 id="dialog-title">{detail ? detail.name : 'Projektdetails'}</h2>{detailLoading && <p className="loading-state" role="status"><span className="spinner" />Details werden geladen …</p>}{detailError && <div className="form-error" role="alert">{detailError}<button className="button secondary" onClick={() => void openDetail(detailId)}>Erneut versuchen</button></div>}{detail && <><p className="detail-description">{detail.description || 'Für dieses Projekt wurde noch keine Beschreibung hinterlegt.'}</p><dl><dt>Erstellt am</dt><dd>{date(detail.created_at)}</dd><dt>Projekt-ID</dt><dd className="mono">{detail.id}</dd><dt>Speicherung</dt><dd>Lokal auf diesem Rechner</dd></dl><label className="field project-group-select">Projektgruppe<select value={detail.group_id || ''} disabled={groupBusy} onChange={event => void moveProject(detail, event.target.value)}><option value="">Ohne Gruppe</option>{groups.map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select><small>Verschiebt nur die Zuordnung in der Übersicht. Projektdateien bleiben unverändert.</small></label><ProjectManager key={detail.id} project={detail} onChanged={()=>{close();void refresh();}}/><div className="detail-note"><Icon name="info" /><p>Öffne das Entwicklungscockpit, verbinde einen Arbeitsordner und lass den Pilot den gespeicherten Stand einlesen.</p></div></>}<div className="dialog-actions"><button className="button secondary" onClick={close}>Schließen</button>{detail && !detail.archived && <button className="button primary" onClick={()=>{setWorkspaceProject(detail);setView('pilot');close();}}>Entwicklungscockpit öffnen<Icon name="arrow" /></button>}</div></>}
+      {modal === 'detail' && <><h2 id="dialog-title">{detail ? detail.name : 'Projektdetails'}</h2>{detailLoading && <p className="loading-state" role="status"><span className="spinner" />Details werden geladen …</p>}{detailError && <div className="form-error" role="alert">{detailError}<button className="button secondary" onClick={() => void openDetail(detailId)}>Erneut versuchen</button></div>}{detail && <><p className="detail-description">{detail.description || 'Für dieses Projekt wurde noch keine Beschreibung hinterlegt.'}</p><dl><dt>Erstellt am</dt><dd>{date(detail.created_at)}</dd><dt>Projekt-ID</dt><dd className="mono">{detail.id}</dd><dt>Speicherung</dt><dd>Lokal auf diesem Rechner</dd></dl><label className="field project-group-select">Projektgruppe<select value={detail.group_id || ''} disabled={groupBusy} onChange={event => void moveProject(detail, event.target.value)}><option value="">Ohne Gruppe</option>{groups.map(group=><option key={group.id} value={group.id}>{group.name}</option>)}</select><small>Verschiebt nur die Zuordnung in der Übersicht. Projektdateien bleiben unverändert.</small></label><Suspense fallback={<p className="loading-state" role="status"><span className="spinner" />Projektverwaltung wird geladen …</p>}><ProjectManager key={detail.id} project={detail} onChanged={()=>{close();void refresh();}}/></Suspense><div className="detail-note"><Icon name="info" /><p>Öffne das Entwicklungscockpit, verbinde einen Arbeitsordner und lass den Pilot den gespeicherten Stand einlesen.</p></div></>}<div className="dialog-actions"><button className="button secondary" onClick={close}>Schließen</button>{detail && !detail.archived && <button className="button primary" onClick={()=>{setWorkspaceProject(detail);setView('pilot');close();}}>Entwicklungscockpit öffnen<Icon name="arrow" /></button>}</div></>}
       {modal === 'pilot' && <><h2 id="dialog-title">Automatisch weiterentwickeln.</h2><p className="dialog-lead">Öffne den mitgelieferten ToolForge Pilot als Desktop-Fenster.</p><div className="pilot-explainer"><span>01</span><p>Arbeitsordner im Pilot auswählen.</p><span>02</span><p>Modell und Aufgabenplan festlegen.</p><span>03</span><p>Prüfen lassen und automatisch fortsetzen.</p></div><p className="field-hint">Die Projekte dieser Workbench sind noch nicht mit den Arbeitsordnern im Pilot verknüpft. Der Pilot startet keinen Entwicklungsauftrag ohne deine Freigabe.</p>{pilotError && <div className="form-error" role="alert">{pilotError}</div>}<div className="dialog-actions"><button className="button secondary" onClick={close} disabled={pilotBusy}>Abbrechen</button><button className="button primary" onClick={() => void openPilot()} disabled={pilotBusy}>{pilotBusy ? 'Wird geöffnet …' : 'Pilot-Fenster öffnen'}<Icon name="arrow" /></button></div></>}
     </dialog>
     {tour && <Tutorial mode={tour} onClose={closeTour}/>}

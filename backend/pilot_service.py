@@ -90,7 +90,7 @@ class Session(AssistanceMixin):
                     files.append(str(file.relative_to(self.store.project)))
             files = sorted(files); file_count = len(files); truncated = False
         docs = {}
-        for name in ('README.md', 'PROGRESS.md', 'IMPLEMENTATION_PLAN.md'):
+        for name in ('README.md', 'PROGRESS.md', 'TOOLFORGE_ROADMAP.md'):
             file = self.store.project / name
             if file.is_file() and not file.is_symlink():
                 docs[name] = file.read_text(encoding='utf-8', errors='replace')[:5000]

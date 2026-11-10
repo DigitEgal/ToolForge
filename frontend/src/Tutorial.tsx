@@ -1,3 +1,4 @@
+import BrandMark from './BrandMark';
 import {useEffect,useLayoutEffect,useState} from 'react';
 import type {CSSProperties} from 'react';
 
@@ -10,7 +11,7 @@ const tours:Record<TourMode,Step[]>={
   {selector:'[data-tour="new-project"]',title:'Neues Projekt',text:'Lege ein Projekt an und gib ihm einen Namen. Die Beschreibung ist optional und dient später als Ausgangspunkt für den Aufgabenplan.'},
   {selector:'[data-tour="project-toolbar"]',title:'Ansicht & Gruppen',text:'Wechsle zwischen Kacheln und Liste. Über Gruppen ordnest du Projekte thematisch; ein Projekt lässt sich jederzeit in eine andere Gruppe oder zurück in „Ohne Gruppe“ verschieben.'},
   {selector:'[data-tour="pilot-open"]',title:'Pilot öffnen',text:'Im Entwicklungscockpit verbindest du einen Arbeitsordner. ToolForge liest den vorhandenen Stand ein und führt danach Aufgabenplan, Vorabcheck und Ausführung zusammen.'},
-  {selector:'[data-tour="nav-roadmap"]',title:'Entwicklungspfad',text:'Der Entwicklungspfad zeigt die zehn integrierten Etappen von der Projektverwaltung bis zu Sandbox-Netzwerken.'},
+  {selector:'[data-tour="nav-roadmap"]',title:'Entwicklungspfad',text:'Der Entwicklungspfad zeigt die zwölf integrierten Etappen von der Projektverwaltung bis zu Marke, Wartung und Performance.'},
   {selector:'[data-tour="nav-help"]',title:'Hilfe',text:'Die Hilfe enthält Bedienungsdokumente, einen dokumentgestützten Hilfechat und die beiden Tutorials. Beide Tutorials lassen sich hier jederzeit erneut starten.'},
   {selector:'[data-tour="topbar-actions"]',title:'Ton & Design',text:'Neben dem Designwechsel liegt der Hinweiston. Fahre mit der Maus über das Lautsprechersymbol, um die Lautstärke einzustellen.'},
   {selector:'[data-tour="shutdown"]',title:'Sauber beenden',text:'ToolForge beenden stoppt laufende Aufträge und den Server. Ein von ToolForge geöffnetes Chrome-/Edge-App-Fenster wird dabei automatisch geschlossen.'}
@@ -80,7 +81,7 @@ export function TutorialWelcome({onStart,onSkip}:{onStart:()=>void;onSkip:()=>vo
  return <div className="tour-layer welcome-layer">
   <div className="tour-dim" aria-hidden="true"/>
   <section className="tour-card welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-   <span className="brand-mark welcome-mark" aria-hidden="true"><i/><i/><i/></span>
+   <BrandMark className="welcome-mark" />
    <span className="eyebrow">WILLKOMMEN BEI TOOLFORGE</span>
    <h2 id="welcome-title">In wenigen Schritten zur eigenen Workbench.</h2>
    <p>Das kurze UI-Tutorial zeigt dir Projekte, Gruppen, Ansichten, den Pilot, den Entwicklungspfad, die Hilfe und das saubere Beenden. Das Entwickler-Tutorial startet beim ersten Besuch des Entwicklungsbereichs und ist jederzeit über die Hilfe erreichbar.</p>

@@ -1,7 +1,7 @@
 import PreflightPanel, {type Preflight} from './PreflightPanel';
-import DeveloperPanel from './DeveloperPanel';
-import AdvancedPanel from './AdvancedPanel';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+const AdvancedPanel = lazy(() => import('./AdvancedPanel'));
+const DeveloperPanel = lazy(() => import('./DeveloperPanel'));
 
 type Project = { id: string; name: string; description: string; created_at: string; folder_path?: string | null };
 type Settings = { aider_python:string; web_search:boolean;debug_logging:boolean;sandbox:boolean;sandbox_network:string;sandbox_memory:string;sandbox_cpus:number;sandbox_pids:number;sandbox_ports:string;research_domains:string; python: string; base: string; model: string; context_tokens: number; output_tokens: number; temperature: number; edit: string; budget: number; timeout: number; allow_pip: boolean; allow_choco: boolean; allow_npm: boolean; simulation: boolean; api_key?: string };
@@ -26,6 +26,7 @@ export default function PilotPanel({project, onProject, onBack, onQuestions, dev
   const [settings,setSettings]=useState<Settings|null>(null);
   const [models,setModels]=useState<Model[]>([]);
   const [tab,setTab]=useState<'dashboard'|'plan'|'logs'|'settings'|'develop'|'advanced'>('dashboard');
+  const [developerLoaded,setDeveloperLoaded]=useState(false);
   const [folder,setFolder]=useState(project.folder_path || '');
   const [createFolder,setCreateFolder]=useState(false);
   const [error,setError]=useState(''); const [notice,setNotice]=useState('');
@@ -74,7 +75,7 @@ export default function PilotPanel({project, onProject, onBack, onQuestions, dev
     connect();
     return()=>{active=false;clearInterval(timer);if(refreshTimer.current)window.clearTimeout(refreshTimer.current);source?.close();};
   },[project.id,project.folder_path]);
-  useEffect(()=>{if(developRequest>0){setTab('develop');onDevelopOpened?.();}},[developRequest]);
+  useEffect(()=>{if(developRequest>0){setDeveloperLoaded(true);setTab('develop');onDevelopOpened?.();}},[developRequest]);
   async function action(fn:()=>Promise<void>){setPending(true);setError('');setNotice('');try{await fn();}catch(e){setError((e as Error).message || 'Verbindung fehlgeschlagen.');}finally{setPending(false);}}
   async function saveSettings(){if(!settings)return;const data=await request<Snapshot>(base+'/settings',settings);setSnapshot(data);setNotice('Einstellungen und Modellprofil gespeichert.');}
   function update<K extends keyof Settings>(key:K,value:Settings[K]){setSettings(old=>old?{...old,[key]:value}:old);}
@@ -91,11 +92,11 @@ export default function PilotPanel({project, onProject, onBack, onQuestions, dev
     {error && <div className="error-banner" role="alert"><div><strong>Bitte prüfen</strong><p>{error}</p></div><button className="button secondary" onClick={()=>void action(refresh)}>Erneut prüfen</button></div>}
     {notice && !snapshot?.error && <p className="notice" role="status">✓ {notice}</p>}
     {!project.folder_path ? <section className="panel folder-panel"><h2>Arbeitsordner auswählen</h2><p>Vorhandene Dateien, Aufgabenpläne und der gespeicherte Pilot-Stand werden automatisch eingelesen. Es wird noch kein Code ausgeführt.</p><label className="field">Vollständiger Projektpfad<input value={folder} onChange={e=>setFolder(e.target.value)} placeholder="C:\Users\Office\Projekte\MeinTool" /></label><div className="inline-actions"><button className="button secondary" disabled={pending} onClick={()=>void action(async()=>{const data=await request<{path:string}>('/api/folders/browse',{});if(data.path)setFolder(data.path);})}>Ordner durchsuchen …</button><label className="check-label"><input type="checkbox" checked={createFolder} onChange={e=>setCreateFolder(e.target.checked)}/>Neuen Ordner anlegen, falls er fehlt</label></div><button className="button primary" disabled={pending || !folder.trim()} onClick={()=>void action(attach)}>Ordner verbinden & Stand einlesen</button></section> : <>
-    <div className="pilot-tabs" role="tablist" aria-label="Projektbereiche">{(['dashboard','develop','plan','advanced','logs','settings'] as const).map(key=><button role="tab" aria-selected={tab===key} className={tab===key?'selected':''} key={key} onClick={()=>setTab(key)}>{{dashboard:'Übersicht',develop:'Entwicklungsbereich',plan:'Aufgabenplan',advanced:'Analyse & Betrieb',logs:'Protokoll',settings:'Einstellungen'}[key]}</button>)}</div>
+    <div className="pilot-tabs" role="tablist" aria-label="Projektbereiche">{(['dashboard','develop','plan','advanced','logs','settings'] as const).map(key=><button role="tab" aria-selected={tab===key} className={tab===key?'selected':''} key={key} onClick={()=>{setTab(key);if(key==='develop')setDeveloperLoaded(true);}}>{{dashboard:'Übersicht',develop:'Entwicklungsbereich',plan:'Aufgabenplan',advanced:'Analyse & Betrieb',logs:'Protokoll',settings:'Einstellungen'}[key]}</button>)}</div>
     {snapshot && <div aria-live="polite"><p role="status">{!snapshot.error && <>{snapshot.busy?'⏳ ':''}{snapshot.phase}</>}</p>{snapshot.error&&<p role="alert" className="field-error">{snapshot.error}</p>}</div>}
     {questions.length>0 && <section className="panel question"><h2>Offene Rückfragen ({questions.length})</h2><p>Unabhängige Aufgaben laufen weiter. Antworten werden vor dem nächsten Auftrag übernommen.</p>{questions.map(([id,row])=><div key={id}><h3>{id}: {row.question}</h3><label className="field">Antwort für {id}<textarea value={answers[id]||''} onChange={e=>setAnswers({...answers,[id]:e.target.value})}/></label><button className="button primary" disabled={pending||!answers[id]?.trim()||snapshot?.pending_answers?.includes(id)} onClick={()=>void action(async()=>{await request(base+'/answers',{task_id:id,answer:answers[id]});await refresh();})}>{snapshot?.pending_answers?.includes(id)?'Für nächsten Auftrag vorgemerkt':'Antwort übernehmen & weiterarbeiten'}</button></div>)}</section>}
-    <div hidden={tab!=='develop'}><DeveloperPanel active={tab==='develop'} key={project.id} projectId={project.id}/></div>
-    {snapshot && tab==='advanced' && <AdvancedPanel base={base} snapshot={snapshot} busy={busy} request={request} action={action} refresh={refresh}/>}
+    {developerLoaded && <div hidden={tab!=='develop'}><Suspense fallback={<div className="loading-state" role="status"><span className="spinner"/>Entwicklungsbereich wird geladen …</div>}><DeveloperPanel active={tab==='develop'} key={project.id} projectId={project.id}/></Suspense></div>}
+    {snapshot && tab==='advanced' && <Suspense fallback={<div className="loading-state" role="status"><span className="spinner"/>Analyse & Betrieb wird geladen …</div>}><AdvancedPanel base={base} snapshot={snapshot} busy={busy} request={request} action={action} refresh={refresh}/></Suspense>}
     {snapshot && tab==='dashboard' && <>
       <details className="panel"><summary>Recherche & Diagnose für den nächsten Durchlauf</summary>{(['web_search','debug_logging'] as const).map(key=><label className="check-label" key={key}><input type="checkbox" checked={snapshot.settings[key]} disabled={pending} onChange={e=>void action(async()=>{const result=await request<Snapshot>(base+'/runtime/options',{[key]:e.target.checked});setSnapshot(result);setSettings(result.settings);})}/>{key==='web_search'?'DuckDuckGo-Websuche erlauben (Fehlerklasse/Modulname werden extern gesucht)':'Ausführliches Fehlerprotokoll im Projekt speichern'}</label>)}</details>
       <div className="metrics"><article><span>Geprüfter Fortschritt</span><strong>{snapshot.progress?.percent || 0}<small> %</small></strong><p>{snapshot.progress?.done || 0} aktuell geprüft · {snapshot.progress?.implemented || 0} bereits umgesetzt / {snapshot.progress?.total || 0} Aufgaben · {snapshot.progress?.recheck || 0} erneut zu prüfen</p></article><article><span>Weitere Durchläufe</span><strong>{snapshot.progress ? `${snapshot.progress.low}–${snapshot.progress.high}`:'—'}</strong><p>Schätzung · {snapshot.progress && snapshot.progress.samples>=3?'aus bisherigen Läufen':'geringe Datenbasis'}</p></article><article><span>Projektbestand</span><strong>{snapshot.scan.file_count}{snapshot.scan.truncated?'+':''}</strong><p>Dateien · {snapshot.scan.has_environment?'Python-Umgebung vorhanden':'noch keine .venv'}</p></article></div>

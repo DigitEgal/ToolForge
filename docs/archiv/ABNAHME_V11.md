@@ -1,5 +1,7 @@
 # Anforderungsabgleich V1.1
 
+> **Historischer Stand V1.1.** Aktueller Abgleich: [ABNAHME.md](../../ABNAHME.md). Die V1.1-Funktionen sind in V1.2 vollständig erhalten; die Regressionstests stehen im [konsolidierten Bericht](../../TESTBERICHT.md).
+
 Basis: ToolForge V1.0 einschließlich aller Regressionen aus 0.1 bis V1.0. Geprüft wurde der Code-, API- und UI-Stand. Reale GPU-, Docker-, Aider-, Tray- und Browser-Läufe sind im Testbericht gesondert abgegrenzt; die automatisierten Prüfungen verwenden dafür isolierte Projekte und simulierte Schnittstellen.
 
 ## V1.1-Pflichtpunkte

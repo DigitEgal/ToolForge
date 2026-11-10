@@ -1,7 +1,7 @@
-; ToolForge V1.1 – Inno Setup 6 definition.
+; ToolForge V1.2 – Inno Setup 6 definition.
 ; Build: installer\build_installer.ps1 (optionally signs with TOOLFORGE_SIGN_CERT).
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1"
+  #define MyAppVersion "1.2"
 #endif
 #define MyAppName "ToolForge"
 #define MyAppPublisher "DigitEgal"

@@ -22,7 +22,8 @@ def test_health_and_empty(client):
     assert client.get('/api/health').json()=={'status':'ok'}
     assert client.get('/api/projects').json()==[]
     assert client.get('/api/groups').json()==[]
-    assert client.get('/api/workbench').json()['version']=='1.1.0'
+    assert client.get('/api/workbench').json()['version']=='1.2.0'
+    assert client.get('/api/workbench').json()['stage']==12
 
 def test_create_get_list(client):
     result=client.post('/api/projects',json={'name':'  Test ü  ','description':'Beschreibung'})
@@ -46,6 +47,19 @@ def test_limits_and_duplicate_names(client):
 
 def test_unknown(client):
     assert client.get('/api/projects/not-found').status_code==404
+
+def test_version_and_static_cache_headers(tmp_path):
+    dist=tmp_path/'dist';assets=dist/'assets';assets.mkdir(parents=True)
+    (dist/'index.html').write_text('<!doctype html><title>ToolForge</title>',encoding='utf-8')
+    (assets/'app-abc123.js').write_text('console.log("toolforge")',encoding='utf-8')
+    app=create_app(tmp_path/'db.sqlite3',static_dir=dist)
+    assert app.version=='1.2.0'
+    with TestClient(app,base_url='http://127.0.0.1:8000',headers=HEADERS) as c:
+        index=c.get('/')
+        assert index.status_code==200 and index.headers['cache-control']=='no-cache'
+        asset=c.get('/assets/app-abc123.js')
+        assert asset.status_code==200
+        assert asset.headers['cache-control']=='public, max-age=31536000, immutable'
 
 def test_origin_and_header(client):
     assert client.post('/api/projects',json={'name':'x'},headers={'Origin':'https://foreign.example'}).status_code==403

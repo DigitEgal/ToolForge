@@ -1,4 +1,4 @@
-# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.1
+# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.2
 
 ## Bedienung
 
@@ -12,7 +12,7 @@
 
 Kleine Abweichungen zwischen angeforderter und tatsächlich geladener Kontextgröße sind zulässig, wenn der geladene Wert höchstens `max(512, 2 %)` unter der Anforderung liegt. ToolForge übernimmt dann den tatsächlich geladenen Wert als geprüftes Budget. Deutlich kleinere Kontexte werden weiterhin abgewiesen.
 
-## Empirische Messreihe (V1.1)
+## Empirische Messreihe (seit V1.1)
 
 Die Messreihe ergänzt den Vorabcheck um wiederholte Arbeitsproben über mehrere Kontextgrößen. Sie misst Tokens/s aus den Nutzungsdaten, VRAM-Spitzen über die Native API und die Streuung der Qualitätsbewertung. Ergebnisse werden pro Hardware-Fingerprint, Modell, Quantisierung, Aufgabentyp und maximalem Kontext zwischengespeichert und können im Bereich **Analyse & Betrieb** gestartet werden.
 

@@ -1,6 +1,6 @@
 # Anforderungsabgleich Version 0.8
 
-> **Historischer Stand 0.8.** Aktueller Abgleich: [ABNAHME_V11.md](ABNAHME_V11.md). Die hier dokumentierten Funktionen sind in V1.0 und V1.1 erhalten; die Regressionstests stehen im aktuellen Bericht.
+> **Historischer Stand 0.8.** Aktueller Abgleich: [ABNAHME.md](../../ABNAHME.md). Die hier dokumentierten Funktionen sind in V1.0 bis V1.2 erhalten; die Regressionstests stehen im [aktuellen Bericht](../../TESTBERICHT.md).
 
 Die Aufgabenliste enthält sechs nummerierte Probleme (auch wenn einleitend fünf genannt wurden). Alle sechs wurden berücksichtigt. „Implementiert“ beschreibt den Code- und UI-Stand; reale Windows-/GPU-/Docker-Tests sind gesondert im Testbericht abgegrenzt.
 

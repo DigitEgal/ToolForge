@@ -197,7 +197,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         database.initialize()
         yield
         pilot.close()
-    app = FastAPI(title='ToolForge · lokale Workbench', version='1.1.0', lifespan=lifespan)
+    app = FastAPI(title='ToolForge · lokale Workbench', version='1.2.0', lifespan=lifespan)
     app.state.database = database
     app.state.pilot = pilot
     app.state.shutdown = None
@@ -220,7 +220,9 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['Cross-Origin-Resource-Policy'] = 'same-origin'
         response.headers['X-Frame-Options'] = 'DENY'
-        if request.url.path.startswith('/api/'):
+        if request.url.path.startswith('/assets/'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif request.url.path.startswith('/api/'):
             response.headers['Cache-Control'] = 'no-store'
         return response
 
@@ -577,7 +579,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
 
     @app.get('/api/workbench')
     def workbench():
-        return {'name': 'ToolForge', 'version': '1.1.0', 'stage': 11, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
+        return {'name': 'ToolForge', 'version': '1.2.0', 'stage': 12, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
 
     dist = Path(static_dir or ROOT / 'frontend' / 'dist')
     if (dist / 'assets').is_dir():

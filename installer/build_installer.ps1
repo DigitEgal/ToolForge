@@ -19,11 +19,11 @@
 .EXAMPLE
     $env:TOOLFORGE_SIGN_CERT = 'C:\certs\toolforge.pfx'
     $env:TOOLFORGE_SIGN_PASSWORD = '...'
-    .\build_installer.ps1 -Version 1.1
+    .\build_installer.ps1 -Version 1.2
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = '1.1',
+    [string]$Version = '1.2',
     [string]$Certificate = $env:TOOLFORGE_SIGN_CERT,
     [string]$CertificatePassword = $env:TOOLFORGE_SIGN_PASSWORD,
     [string]$TimestampUrl = 'http://timestamp.digicert.com',

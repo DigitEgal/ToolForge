@@ -1,4 +1,4 @@
-# Entwicklungspfad — Stand V1.1
+# Entwicklungspfad — Stand V1.2
 
 01 Projektverwaltung und Pilot: integriert.
 02 Entwicklungsbereich: Dateiliste nach Ordnerpfaden, CodeMirror-Editor, konfliktgeprüftes Speichern und Sicherungen.
@@ -11,8 +11,18 @@
 09 Docker-Ausführung für Projektbefehle: optional integriert.
 10 Explizite interne Sandbox-Netzwerke: integriert; Docker Desktop separat erforderlich.
 11 Analyse & Betrieb: inkrementeller Index, empirische Messreihen, Plan-Vorschau, Anwendungsabnahme, Aufgaben-Graph, Recherchebelege, Presets, Export/Import, Logrotation, Tray und Installer.
+12 Marke & Performance: V7-Tool-Logo, V6-DigitEgal-Wortmarke, konsolidierte Berichte und verzögertes Laden großer Oberflächenbereiche.
 
-## Querschnitt V1.1
+## V1.2-Schwerpunkte
+
+- Einheitliches Branding aus `frontend/logos`: V7-Logo in Sidebar, Abschlussbildschirm und Tutorial, V6-Wortmarke im verlinkten „by DigitEgal“.
+- Geteilte Frontend-Bereiche: Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden erst bei Bedarf geladen.
+- Der initiale JavaScript-Block sinkt von rund 955 kB auf rund 261 kB; der CodeMirror-Editor bleibt als eigener, bedarfsgeladener Block erhalten.
+- Gehashte Vite-Assets werden mit `Cache-Control: public, max-age=31536000, immutable` ausgeliefert; `index.html` bleibt `no-cache`.
+- Ein konsolidierter Testbericht ersetzt die versionsspezifischen Einzelberichte; alte Umgebungsdateien und nicht mehr verwendete Logo-Duplikate wurden entfernt.
+- Versionsstand durchgängig V1.2 beziehungsweise `1.2.0`, Workbench-Stage `12`.
+
+## Basis aus V1.1
 
 - Vollständige inkrementelle Projektanalyse mit Symbolen, Abhängigkeiten und belegter Kontextabdeckung.
 - Empirische Modell-/Kontextmessung pro Hardware, Quantisierung und Aufgabentyp.
@@ -25,4 +35,4 @@
 - Projekt-Export/Import, Plan-Sicherungen, Logrotation, optionales Tray und vorbereiteter Windows-Installer.
 - Sandbox-Ressourcenregler, Loopback-Ports, Image-/Netzwerkverwaltung und Container-Pakete.
 
-Grenzen und Bedienung stehen in README.md. Noch offen: Git-Branches/Push/Pull, Debugger, parallele Workflow-Ausführung und Mehrfacheingänge. Die Verfügbarkeit der Funktionen bedeutet nicht, dass beliebiger vom Modell erzeugter Code fachlich korrekt ist. Details: [ABNAHME_V11.md](ABNAHME_V11.md).
+Grenzen und Bedienung stehen in README.md. Noch offen: Git-Branches/Push/Pull, Debugger, parallele Workflow-Ausführung und Mehrfacheingänge. Die Verfügbarkeit der Funktionen bedeutet nicht, dass beliebiger vom Modell erzeugter Code fachlich korrekt ist. Details: [ABNAHME.md](ABNAHME.md), [TESTBERICHT.md](TESTBERICHT.md).

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/toolforge-logo.svg" alt="ToolForge – Local Workbench" width="360">
+  <img src="frontend/logos/LogoV7_OnlyLOGO.png" alt="ToolForge – Local Workbench" width="96">
 </p>
 
 <p align="center">
@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-V1.1-b8a3ff" alt="Version V1.1">
+  <img src="https://img.shields.io/badge/version-V1.2-b8a3ff" alt="Version V1.2">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-149%20passed-2ea44f" alt="149 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-150%20passed-2ea44f" alt="150 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -38,10 +38,18 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 | **Abnahme** | Deklarierte CLI-, lokale HTTP- und Headless-Browser-Szenarien als echte Anwendungsabnahme; getrennte Prüfung von Teständerungen mit Baseline und Review-Schritt |
 | **Recherche & Diagnose** | Recherche mit Domainfilter, geöffneten Quellen, Textbelegen und Cache; Journal; ausführliche Fehlerprotokolle mit Redaktion von Geheimnissen |
 | **Sandbox** | Optionale Docker-Ausführung für Projektbefehle und Python-Workflowknoten; Images, interne Netzwerke, Speicher-/CPU-/Prozesslimits, Loopback-Ports und Paketinstallation im Container |
-| **Bedienung** | Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App |
+| **Bedienung** | Einheitliches V7-/V6-Branding, Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App; große Bereiche und Editor laden erst bei Bedarf |
 | **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Logrotation, Plan-Sicherungen, Deinstallationsskript, optionales Tray-Symbol und vorbereiteter Windows-Installer |
 
-## Neu in V1.1
+## Neu in V1.2
+
+- **Einheitliches Branding:** Das V7-Logo aus `frontend/logos` steht in Sidebar, Abschlussbildschirm und Willkommensdialog. Unten links bleibt genau ein verlinktes „by DigitEgal“, dessen Schriftzug jetzt die V6-Wortmarke als Bild nutzt; Größe und Kontrast sind auf die Sidebar abgestimmt.
+- **Schnellerer Start:** Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden per `React.lazy`/`Suspense` erst beim Öffnen geladen. Der initiale JavaScript-Block sinkt von rund 955 kB auf rund 261 kB; der Editor bleibt ein separater, bedarfsgeladener CodeMirror-Block.
+- **Dauerhaft cachebare Assets:** Gehashte Dateien unter `/assets/` erhalten `public, max-age=31536000, immutable`; `index.html` bleibt `no-cache`, damit ein Update sofort erkannt wird.
+- **Aufgeräumte Dokumentation:** Alle Testberichte und Umgebungsdaten stehen in einem aktuellen [TESTBERICHT.md](TESTBERICHT.md). Historische Anforderungsabgleiche liegen im Archiv; versionsspezifische Einzelberichte, alte Umgebungsdateien und nicht mehr verwendete SVG-Logo-Duplikate wurden entfernt.
+- **Durchgängig V1.2:** API und FastAPI-Metadaten melden `1.2.0`, die Workbench Stage `12`; Frontend-Paket, Installer, Startbanner, Hilfe und Entwicklungspfad tragen V1.2 beziehungsweise zwölf Etappen.
+
+## Funktionsbasis V1.1
 
 - **Vollständige inkrementelle Projektanalyse:** Der Index speichert Dateisignaturen, Symbole, Importe und Abhängigkeiten; nur geänderte Dateien werden neu gelesen. Große Projekte werden in belegten, größenbegrenzten Teilschritten analysiert, inklusive Manifest und Abdeckungsanzeige.
 - **Empirische Messreihe statt Familienvorauswahl:** Wiederholte Arbeitsproben über mehrere Kontextgrößen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung; Ergebnisse werden pro Hardware, Quantisierung und Aufgabentyp zwischengespeichert.
@@ -54,7 +62,7 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 - **Betrieb und Wiederherstellung:** Projekt-Export/Import als ZIP, Logrotation, Plan-Sicherungen, Installer-Definition, Build-/Signierskript und optionales Tray-Symbol.
 - **Sandbox-Komfort:** Ressourcenregler, Image- und Netzwerkverwaltung, Loopback-Ports und pip-/npm-Paketinstallation in abgeleiteten Projektimages.
 
-Die vollständige Zuordnung steht in [ABNAHME_V11.md](ABNAHME_V11.md). Testumfang und Prüfgrenzen dokumentiert [TESTBERICHT_V11.md](TESTBERICHT_V11.md).
+Die vollständige Zuordnung steht in [ABNAHME.md](ABNAHME.md). Testumfang und Prüfgrenzen dokumentiert [TESTBERICHT.md](TESTBERICHT.md).
 
 ## Installation unter Windows
 
@@ -133,9 +141,8 @@ python uninstall_toolforge.py --yes --keep-data
 
 ## Dokumentation
 
-- [Abnahme und Anforderungsabgleich V1.1](ABNAHME_V11.md)
-- [Testbericht V1.1](TESTBERICHT_V11.md)
-- [Testumgebung V1.1](TEST_ENVIRONMENT_V11.json)
+- [Abnahme und Anforderungsabgleich V1.2](ABNAHME.md)
+- [Konsolidierter Testbericht V1.2 mit Archiv](TESTBERICHT.md)
 - [Entwicklungspfad](TOOLFORGE_ROADMAP.md)
 - [LM Studio und Modell-Vorabcheck](LM_STUDIO_PRESETS.md)
 - [Start und Projekte](help/01_Start_und_Projekte.md)
@@ -155,7 +162,7 @@ python -m pytest -q tests backend/tests
 npm --prefix frontend run build
 ```
 
-Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die Tests verwenden isolierte Projekte und simulierte Modell-/Docker-Antworten. Reale Modellqualität, GPU-/VRAM-Verhalten, Docker Desktop, echte Aider-Läufe, Signierung und Tray müssen auf der Zielmaschine zusätzlich geprüft werden. Details und Grenzen: [TESTBERICHT_V11.md](TESTBERICHT_V11.md).
+Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die Tests verwenden isolierte Projekte und simulierte Modell-/Docker-Antworten. Reale Modellqualität, GPU-/VRAM-Verhalten, Docker Desktop, echte Aider-Läufe, Signierung und Tray müssen auf der Zielmaschine zusätzlich geprüft werden. Details und Grenzen: [TESTBERICHT.md](TESTBERICHT.md).
 
 ### Projektstruktur
 
@@ -163,11 +170,12 @@ Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die 
 backend/            FastAPI, Projekt-API, Pilot-Brücke, Workspace, Workflows
 toolforge_pilot/    Engine, Aider-Adapter, Vorabcheck, Installationen, Recovery
 frontend/src/       React-/TypeScript-Oberfläche inklusive Tutorials
+frontend/logos/     V7-Tool-Logo und V6-DigitEgal-Wortmarke
 tests/              Engine-, Pilot- und Regressionstests
 backend/tests/      API-, Datenbank- und Migrationsprüfungen
 help/               Bedienungsdokumente für die App
 installer/          Inno-Setup-Definition, Build- und Signierskript
-docs/assets/        ToolForge- und DigitEgal-Logos
+docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
 ```
 
 ## Bekannte Grenzen
@@ -193,6 +201,7 @@ docs/assets/        ToolForge- und DigitEgal-Logos
 | 0.9 | Projektgruppen, Listenansicht, Tutorials, Branding – in V1.0 nachgezogen |
 | **V1.0** | **Pillow-Selbstreparatur, Browser-Schließen, Ein-Klick-Ablauf, Kontexttoleranz, 3–6 Kandidaten, Deinstallation** |
 | **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
+| **V1.2** | **V7-/V6-Branding, konsolidierter Testbericht, aufgeräumte Altlasten, Code-Splitting mit deutlich kleinerem Start-Bundle, immutable Asset-Cache und zwölfte Etappe** |
 
 ## Lizenz und Credits
 
