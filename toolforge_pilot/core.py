@@ -329,6 +329,15 @@ def run_process(argv, cwd, timeout, stop, on_output=lambda x: None, env=None, ou
     output, reason, eof = '', '', False
     def terminate_tree():
         if os.name == 'nt':
+            # A child can be spawned in the short gap before the parent is assigned
+            # to the Job Object. taskkill /T catches that race while the parent lives.
+            if proc.poll() is None:
+                try:
+                    subprocess.run(['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                   timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)
+                except (OSError, subprocess.SubprocessError):
+                    pass
             if job: job.close()
         else:
             try: os.killpg(proc.pid, signal.SIGKILL)
@@ -560,6 +569,12 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
         self.logfile = self.store.log_root / ('session-' + uuid.uuid4().hex + '.log')
         try:
             from .evidence import invalidate, mark_verified
+            from .task_graph import apply_priorities, approvals as file_approvals, blocking_files
+            from .scenarios import snapshot_tests
+            if not s.get('test_baseline'):
+                # Record the test suite before agent edits so later test changes are reviewable.
+                s['test_baseline'] = snapshot_tests(self.store.project)
+                self.store.save()
             invalidate(self.store)
             self.update('PREPARING', 'Projektstand und Aufgaben werden geprüft.')
             while not self.stop.is_set():
@@ -567,14 +582,18 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                 s = self.store.state
                 self.apply_answers()
                 invalidate(self.store)
+                apply_priorities(self.store.project, s)
+                approved_files = file_approvals(self.store.project, s)
+                blocking = {t['id']: blocking_files(s['plan']['tasks'], t['id']) for t in s['plan']['tasks']}
                 candidates = [t for t in s['plan']['tasks'] if s['tasks'][t['id']]['status'] != 'VERIFIED' and not s['tasks'][t['id']].get('question')
-                              and all(s['tasks'][dep]['status'] == 'VERIFIED' for dep in t['depends_on'])]
+                              and all(s['tasks'][dep]['status'] == 'VERIFIED' for dep in t['depends_on'])
+                              and blocking[t['id']].issubset(approved_files)]
                 waiting_files = {f for t in s['plan']['tasks'] if s['tasks'][t['id']].get('question') for f in t.get('context_candidates', []) + t['files']}
                 candidates = [t for t in candidates if not waiting_files.intersection(t.get('context_candidates', []) + t['files'])]
                 if not candidates:
                     if any(row['status'] != 'VERIFIED' for row in s['tasks'].values()):
-                        s['blocked_tasks'] = [{'id':t['id'],'dependencies':[d for d in t['depends_on'] if s['tasks'][d]['status']!='VERIFIED'],'file_conflicts':sorted(waiting_files.intersection(t.get('context_candidates',[])+t['files']))} for t in s['plan']['tasks'] if s['tasks'][t['id']]['status']!='VERIFIED']
-                        self.update('WAITING', 'Alle übrigen Aufgaben hängen von offenen Antworten, Voraussetzungen oder gemeinsam bearbeiteten Dateien ab. Blockierungsgründe stehen in der Übersicht.'); return
+                        s['blocked_tasks'] = [{'id':t['id'],'dependencies':[d for d in t['depends_on'] if s['tasks'][d]['status']!='VERIFIED'],'file_conflicts':sorted(waiting_files.intersection(t.get('context_candidates',[])+t['files'])),'approval_missing':sorted(blocking.get(t['id'],set())-approved_files)} for t in s['plan']['tasks'] if s['tasks'][t['id']]['status']!='VERIFIED']
+                        self.update('WAITING', 'Alle übrigen Aufgaben hängen von offenen Antworten, Voraussetzungen, ungeprüften gemeinsamen Dateien oder Freigaben ab. Blockierungsgründe stehen in der Übersicht.'); return
                     final_hash=fingerprint(self.store.project)
                     if s.get('final_checked_fingerprint')!=final_hash:
                         self.update('CHECKING','Abschließende Integrationsprüfung aller Aufgaben (keine erneute Implementierung).')
@@ -589,9 +608,31 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                             else:s['tasks'][failed].update(status='RECHECK',error=report)
                             continue
                         s['final_checked_fingerprint']=final_hash
+                    # Application-level acceptance is a separate gate: declared CLI/HTTP/browser
+                    # scenarios exercise the built tool, and test changes require a review.
+                    if s['plan'].get('acceptance_scenarios'):
+                        from .scenarios import run as run_scenarios, last as last_acceptance
+                        accepted = s.get('acceptance_report')
+                        if s.get('acceptance_checked_fingerprint') == final_hash:
+                            # Pick up a test-change review performed in the UI.
+                            accepted = last_acceptance(self.store.project) or accepted
+                        if s.get('acceptance_checked_fingerprint') != final_hash or not accepted:
+                            self.update('CHECKING', 'Anwendungsabnahme mit deklarierten CLI-/HTTP-/Browser-Szenarien.')
+                            accepted = run_scenarios(self.store.project, self.python, self.stop, self.log, s)
+                            s['acceptance_report'] = accepted
+                            s['acceptance_checked_fingerprint'] = final_hash
+                            self.store.save()
+                        if not accepted.get('passed'):
+                            failed = next((row for row in accepted.get('scenarios', []) if not row.get('passed') and not row.get('informational')), {})
+                            detail = str(failed.get('error') or failed.get('output', ''))[-800:]
+                            self.question(s['plan']['tasks'][0]['id'], 'Die Anwendungsabnahme ist nicht bestanden (Szenario ' + str(failed.get('id', '?')) + '). Ursache prüfen und beheben: ' + detail, detail)
+                            continue
+                        if accepted.get('review_required') and not accepted.get('reviewed_at'):
+                            self.update('REVIEW', 'Anwendungsabnahme bestanden; geänderte Tests gesondert prüfen und Lauf danach fortsetzen.')
+                            return
                     s['verified_fingerprint'] = final_hash
-                    self.update('DONE', 'Alle Aufgaben und die abschließende Integrationsprüfung bestanden.'); return
-                candidates.sort(key=lambda t: (not bool(s['tasks'][t['id']].get('answer')), len(t['depends_on'])))
+                    self.update('DONE', 'Alle Aufgaben, die abschließende Integrationsprüfung und die Anwendungsabnahme sind bestanden.'); return
+                candidates.sort(key=lambda t: (-int(t.get('priority', 0) or 0), not bool(s['tasks'][t['id']].get('answer')), len(t['depends_on'])))
                 task = candidates[0]; row = s['tasks'][task['id']]; s['current'] = task['id']
                 if row.get('question'):
                     continue

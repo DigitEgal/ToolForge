@@ -167,7 +167,7 @@ def test_setup_installs_separate_aider_and_validates(tmp_path):
     with patch.object(setup,'ROOT',tmp_path),patch('setup_toolforge.venv.EnvBuilder') as env,patch('setup_toolforge.subprocess.run') as run,patch('toolforge_pilot.core.AiderAdapter.probe') as probe:
         setup.main()
     calls=[call.args[0] for call in run.call_args_list]
-    assert any('aider-chat' in args and '--python' in args for args in calls)
+    assert any(str(tmp_path/'requirements-aider.txt') in args and '--python' in args for args in calls)
     assert any(args[-3:]==['-m','aider','--version'] for args in calls)
     probe.assert_called_once()
     assert '.aider-venv' in (tmp_path/'setup-runtime.json').read_text()

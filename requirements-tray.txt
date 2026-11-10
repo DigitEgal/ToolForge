@@ -1,0 +1,3 @@
+# Optional system tray (Tray-Symbol). Not required for the workbench.
+pystray==0.19.5
+Pillow==11.3.0

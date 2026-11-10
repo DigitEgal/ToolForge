@@ -1,5 +1,7 @@
 # Anforderungsabgleich V1.0
 
+> **Historischer Stand V1.0.** Aktueller Abgleich: [ABNAHME_V11.md](ABNAHME_V11.md). Die V1.0-Funktionen sind in V1.1 erhalten.
+
 Basis: bereitgestellte Version 0.8 einschließlich aller früheren Stände. Geprüft wurde der Code- und UI-Stand; reale Windows-, GPU-, Docker-, Browser- und Aider-Läufe sind im Testbericht gesondert abgegrenzt. Maßgeblich ist die gelieferte Versionshistorie von 0.1 bis V1.0.
 
 ## V1.0-Pflichtpunkte

@@ -85,7 +85,7 @@ def main():
             if is_toolforge(): open_ui(track);return
             time.sleep(.1)
     threading.Thread(target=open_when_ready, daemon=True).start()
-    print('ToolForge Pilot V1.0 | ' + URL + '\nBeenden über die UI oder Stop_ToolForge.cmd.')
+    print('ToolForge Pilot V1.1 | ' + URL + '\nBeenden über die UI oder Stop_ToolForge.cmd.')
     runtime=ROOT/'runtime';runtime.mkdir(exist_ok=True)
     instance=uuid.uuid4().hex
     info=runtime/'server.json'
@@ -97,6 +97,13 @@ def main():
             if session.engine:session.engine.stop.set()
         server.should_exit=True
     app.state.shutdown=stop
+    app.state.tray=False
+    if os.environ.get('TOOLFORGE_TRAY','1') != '0':
+        try:
+            from toolforge_pilot.tray import start as start_tray
+            app.state.tray=start_tray(URL,stop)
+        except Exception:
+            app.state.tray=False
     def watch():
         while not server.should_exit:
             if (runtime/('stop-'+instance)).exists():stop();return

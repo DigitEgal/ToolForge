@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -197,7 +197,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         database.initialize()
         yield
         pilot.close()
-    app = FastAPI(title='ToolForge · lokale Workbench', version='1.0.0', lifespan=lifespan)
+    app = FastAPI(title='ToolForge · lokale Workbench', version='1.1.0', lifespan=lifespan)
     app.state.database = database
     app.state.pilot = pilot
     app.state.shutdown = None
@@ -398,6 +398,115 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     @app.get('/api/projects/{ident}/pilot')
     def pilot_snapshot(ident: str): return session_for(ident).snapshot()
 
+    # --- V1.1: event stream, incremental index, benchmarks and acceptance ---
+
+    def event_response(channel, initial, unsubscribe):
+        from backend.events import stream
+        headers = {'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'}
+
+        def generate():
+            try:
+                yield from stream(channel, initial)
+            finally:
+                unsubscribe()
+        return StreamingResponse(generate(), media_type='text/event-stream', headers=headers)
+
+    @app.get('/api/events')
+    def global_events():
+        digest = pilot.question_digest()
+        channel = pilot.hub.subscribe_global()
+        return event_response(channel, [('questions', {'questions': digest, 'count': len(digest)})],
+                              lambda: pilot.hub.unsubscribe_global(channel))
+
+    @app.get('/api/projects/{ident}/pilot/events')
+    def pilot_events(ident: str):
+        session = session_for(ident)
+        channel = pilot.hub.subscribe_session(session.ident)
+        return event_response(channel, [('snapshot', session.snapshot())],
+                              lambda: pilot.hub.unsubscribe_session(session.ident, channel))
+
+    @app.post('/api/projects/{ident}/pilot/index')
+    def pilot_index_refresh(ident: str, data: dict | None = None):
+        return session_for(ident).refresh_index(bool((data or {}).get('force')))
+
+    @app.post('/api/projects/{ident}/pilot/analysis')
+    def pilot_analysis(ident: str, data: dict | None = None):
+        return session_for(ident).analysis_context(data or {})
+
+    @app.post('/api/projects/{ident}/pilot/plan/preview')
+    def pilot_plan_preview(ident: str, data: dict):
+        return session_for(ident).preview_plan(data)
+
+    @app.get('/api/projects/{ident}/pilot/benchmark')
+    def pilot_benchmark_cache(ident: str): return session_for(ident).benchmark_cache()
+
+    @app.post('/api/projects/{ident}/pilot/benchmark', status_code=202)
+    def pilot_benchmark_run(ident: str, data: dict): return session_for(ident).run_benchmark(data)
+
+    @app.get('/api/projects/{ident}/pilot/scenarios')
+    def pilot_scenarios(ident: str): return session_for(ident).snapshot().get('scenarios')
+
+    @app.post('/api/projects/{ident}/pilot/scenarios/run', status_code=202)
+    def pilot_scenarios_run(ident: str, data: dict | None = None): return session_for(ident).run_acceptance(data or {})
+
+    @app.post('/api/projects/{ident}/pilot/scenarios/review')
+    def pilot_scenarios_review(ident: str, data: dict | None = None): return session_for(ident).review_acceptance(data or {})
+
+    @app.get('/api/projects/{ident}/pilot/research')
+    def pilot_research_cache(ident: str): return session_for(ident).research_cache()
+
+    @app.post('/api/projects/{ident}/pilot/research', status_code=202)
+    def pilot_research(ident: str, data: dict): return session_for(ident).research(data)
+
+    @app.post('/api/projects/{ident}/pilot/graph')
+    def pilot_graph(ident: str, data: dict):
+        from toolforge_pilot import task_graph
+        session = session_for(ident)
+        return task_graph.update(session.store.project, session.store.state, data)
+
+    @app.get('/api/projects/{ident}/pilot/environment')
+    def pilot_environment(ident: str): return session_for(ident).environment_lock()
+
+    @app.post('/api/projects/{ident}/pilot/presets/export')
+    def pilot_preset_export(ident: str, data: dict | None = None): return session_for(ident).export_preset(data or {})
+
+    @app.post('/api/projects/{ident}/pilot/presets/import')
+    def pilot_preset_import(ident: str, data: dict): return session_for(ident).import_preset(data)
+
+    @app.get('/api/projects/{ident}/pilot/operations')
+    def pilot_operations(ident: str):
+        from toolforge_pilot import operations
+        return operations.operations_status(session_for(ident).store.project)
+
+    @app.post('/api/projects/{ident}/pilot/operations/rotate')
+    def pilot_log_rotation(ident: str): return session_for(ident).rotate_logs()
+
+    @app.post('/api/projects/{ident}/pilot/backups/restore')
+    def pilot_backup_restore(ident: str, data: dict): return session_for(ident).restore_backup(data)
+
+    @app.get('/api/projects/{ident}/pilot/export')
+    def pilot_export(ident: str):
+        file = session_for(ident).export_project()
+        return FileResponse(file, filename=file.name, media_type='application/zip')
+
+    @app.post('/api/projects/{ident}/pilot/import')
+    def pilot_import(ident: str, data: dict): return session_for(ident).import_project(data)
+
+    @app.get('/api/projects/{ident}/pilot/sandbox')
+    def pilot_sandbox(ident: str): return session_for(ident).sandbox_status()
+
+    @app.post('/api/projects/{ident}/pilot/sandbox/build', status_code=202)
+    def pilot_sandbox_build(ident: str): return session_for(ident).sandbox_build()
+
+    @app.post('/api/projects/{ident}/pilot/sandbox/image/remove', status_code=202)
+    def pilot_sandbox_image_remove(ident: str): return session_for(ident).sandbox_remove_image()
+
+    @app.post('/api/projects/{ident}/pilot/sandbox/network', status_code=202)
+    def pilot_sandbox_network(ident: str, data: dict): return session_for(ident).sandbox_network(data)
+
+    @app.post('/api/projects/{ident}/pilot/sandbox/package', status_code=202)
+    def pilot_sandbox_package(ident: str, data: dict): return session_for(ident).sandbox_package(data)
+
     @app.get('/api/help')
     def help_docs():
         from backend.assistance import help_documents
@@ -422,11 +531,14 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     def pilot_models(ident: str): return session_for(ident).models()
 
     @app.post('/api/projects/{ident}/pilot/plan')
-    def pilot_plan(ident: str, data: dict): return session_for(ident).apply_plan(data)
+    def pilot_plan(ident: str, data: dict):
+        confirm = data.get('confirm') is True if isinstance(data, dict) else False
+        plan = data.get('plan', data) if isinstance(data, dict) else data
+        return session_for(ident).apply_plan(plan, confirm=confirm)
 
     @app.post('/api/projects/{ident}/pilot/demo')
     def pilot_demo(ident: str):
-        return session_for(ident).apply_plan(json.loads((ROOT / 'examples/demo_plan.json').read_text(encoding='utf-8')))
+        return session_for(ident).apply_plan(json.loads((ROOT / 'examples/demo_plan.json').read_text(encoding='utf-8')), confirm=True)
 
     @app.post('/api/projects/{ident}/pilot/preflight/options')
     def preflight_options(ident: str, data: dict):
@@ -465,7 +577,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
 
     @app.get('/api/workbench')
     def workbench():
-        return {'name': 'ToolForge', 'version': '1.0.0', 'stage': 10, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
+        return {'name': 'ToolForge', 'version': '1.1.0', 'stage': 11, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
 
     dist = Path(static_dir or ROOT / 'frontend' / 'dist')
     if (dist / 'assets').is_dir():

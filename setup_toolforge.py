@@ -17,10 +17,10 @@ def main():
     aider=ROOT/'.aider-venv'
     if not python_at(aider).exists():
         subprocess.run([str(python),'-m','uv','venv','--python','3.12','--seed',str(aider)],check=True)
-    subprocess.run([str(python),'-m','uv','pip','install','--python',str(python_at(aider)),'aider-chat'],check=True)
+    subprocess.run([str(python),'-m','uv','pip','install','--python',str(python_at(aider)),'-r',str(ROOT/'requirements-aider.txt')],check=True)
     subprocess.run([str(python_at(aider)),'-m','aider','--version'],check=True)
     from toolforge_pilot.core import AiderAdapter
     AiderAdapter(str(python_at(aider)),'http://localhost:1234/v1','lm-studio','setup-probe').probe()
     (ROOT/'setup-runtime.json').write_text(json.dumps({'aider_python':str(python_at(aider))},indent=2),encoding='utf-8')
-    print('ToolForge Pilot V1.0: Einrichtung und Aider-Prüfung abgeschlossen. Jetzt Start_ToolForge.cmd öffnen.')
+    print('ToolForge Pilot V1.1: Einrichtung und Aider-Prüfung abgeschlossen. Jetzt Start_ToolForge.cmd öffnen.')
 if __name__=='__main__':main()

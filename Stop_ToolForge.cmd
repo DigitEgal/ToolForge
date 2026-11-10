@@ -5,4 +5,4 @@ if exist ".venv\Scripts\python.exe" (
 ) else (
  python "stop_toolforge.py"
 )
-pause
+if /i not "%~1"=="/quiet" pause

@@ -1,0 +1,2 @@
+# Reproducible Aider environment. Update deliberately and rerun setup_toolforge.py.
+aider-chat==0.86.2

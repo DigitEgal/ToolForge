@@ -1,6 +1,6 @@
 # Historische Basisspezifikation 0.6
 
-Der aktuelle Anforderungsabgleich einschließlich 0.7, 0.8 und V1.0 steht in ABNAHME_V10.md. Die folgenden Angaben dokumentieren den früheren Stand.
+Der aktuelle Anforderungsabgleich einschließlich 0.7, 0.8, V1.0 und V1.1 steht in [ABNAHME_V11.md](ABNAHME_V11.md). Die folgenden Angaben dokumentieren den früheren Stand.
 
 # ToolForge Pilot 0.6 — Implementierungsumfang
 

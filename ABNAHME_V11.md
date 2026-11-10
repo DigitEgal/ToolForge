@@ -1,0 +1,40 @@
+# Anforderungsabgleich V1.1
+
+Basis: ToolForge V1.0 einschließlich aller Regressionen aus 0.1 bis V1.0. Geprüft wurde der Code-, API- und UI-Stand. Reale GPU-, Docker-, Aider-, Tray- und Browser-Läufe sind im Testbericht gesondert abgegrenzt; die automatisierten Prüfungen verwenden dafür isolierte Projekte und simulierte Schnittstellen.
+
+## V1.1-Pflichtpunkte
+
+| ID | Anforderung | Umsetzung | Beleg |
+|---|---|---|---|
+| V11-1 | Vollständige, inkrementelle Projektanalyse statt Quelltextstichproben | `toolforge_pilot/project_index.py` speichert pro Datei Signatur, Sprache, Symbole, Importe und Abhängigkeiten in `.toolforge/index.json`. Nur geänderte oder neue Dateien werden neu geparst, Löschungen werden entfernt. `project_index.context` liefert einen begrenzten Manifest-Überblick plus nummerierte Quelltext-Teilschritte mit expliziter Abdeckung. `backend/assistance.py` nutzt diesen Index statt 2.500-Zeichen-Ausschnitten. Das Manifest ist selbst größenbegrenzt. | `tests/test_v11.py::ProjectIndexTests`; `backend/tests/test_api_v11.py::test_v11_index_analysis_and_plan_preview`; API-Routen `/pilot/index` und `/pilot/analysis`. |
+| V11-2 | Empirische Modell-/Kontextmessung pro Hardware, Quantisierung und Aufgabentyp | `toolforge_pilot/benchmarks.py` misst mehrere Kontextgrößen und Wiederholungen, optional zwei Temperaturen, Tokens/s aus Nutzungsdaten, VRAM-Spitzen aus der Native API und Qualitätsstreuung. Ergebnisse werden pro Hardware-Fingerprint, Modell, Quantisierung, Aufgabentyp und maximalem Kontext zwischengespeichert. Die Empfehlung ist ausdrücklich eine gemessene Stichprobe, keine globale Rangliste. | `tests/test_v11.py::BenchmarkTests`; `/pilot/benchmark` (GET/POST); UI-Bereich „Empirische Messreihe“. |
+| V11-3 | Plan-Diff und Vorschau vor größeren Änderungen | `toolforge_pilot/planning.py` vergleicht Aufgaben, Dateien, Abhängigkeiten, Prüfungen, Aufwand und bereits geprüfte Teile. `requires_confirmation` wird bei betroffenen geprüften Aufgaben oder entfernten/geänderten Prüfungen gesetzt. Vor jeder Übernahme entsteht eine Plan-Sicherung. `Session.apply_plan(..., confirm=True)` erzwingt die ausdrückliche Bestätigung. | `tests/test_v11.py::PlanningTests`; `backend/tests/test_api_v11.py::test_v11_index_analysis_and_plan_preview` (Vorschau, Risiko, 422 ohne Bestätigung, erfolgreiche Bestätigung); UI-Vorschau in `PilotPanel.tsx`. |
+| V11-4 | Echte Anwendungsabnahme und getrennte Teständerungsprüfung | `toolforge_pilot/scenarios.py` führt deklarierte CLI-, lokale HTTP- und Headless-Browser-Szenarien aus. `core.py` prüft die Abnahme vor `DONE`, sobald `acceptance_scenarios` im Plan deklariert sind. Ohne Deklaration bleibt ein automatisches CLI-`--help`-Szenario informativ und blockiert nicht. Teständerungen werden gegen eine Baseline gesichert, als Diff ausgewiesen und über `REVIEW` beziehungsweise `/pilot/scenarios/review` freigegeben. | `tests/test_v11.py::ScenarioTests`; `backend/tests/test_api_v11.py`; Abnahme-Gate in `toolforge_pilot/core.py`; UI-Bereich „Anwendungsabnahme“. |
+| V11-5 | Reproduzierbare Umgebungen, Lockfiles, Docker-Digests und Presets | `requirements-aider.txt` pinnt `aider-chat==0.86.2`; `requirements-tested.txt` dokumentiert den Controller-Stand. `setup_toolforge.py` installiert Aider aus der Lockdatei. `toolforge_pilot/environments.py` erzeugt Umgebungssperren mit Python-/Paketversionen, Dateihashes und Docker-Image-Digests und exportiert/importiert Presets ohne API-Schlüssel. | `tests/test_v11.py::EnvironmentAndOperationsTests`; `/pilot/environment`, `/pilot/presets/export`, `/pilot/presets/import`; `installer/` und README. |
+| V11-6 | Aufgaben-Graph mit Blockierungen, Prioritäten und Dateifreigaben | `toolforge_pilot/task_graph.py` erzeugt Knoten, Kanten, kritischen Pfad, bereite Aufgaben und Dateikonflikte. Gemeinsame Dateien sind nur dann blockierend, wenn keine Abhängigkeitsreihenfolge besteht; parallele Nutzung braucht eine ausdrückliche Freigabe. Prioritäten aus dem Graphen werden vor der Aufgabenauswahl in den aktiven Plan übernommen. | `tests/test_v11.py::TaskGraphTests`; `/pilot/graph`; UI-Bereich „Aufgaben-Graph“ in `AdvancedPanel.tsx`. |
+| V11-7 | Ereignisbasierte Aktualisierung und globale Rückfragen | `backend/events.py` implementiert einen Queue-basierten `EventHub` mit SSE-Formatierung, Herzschlag und Session-/Global-Kanälen. `PilotPanel.tsx` nutzt SSE und behält langsames Polling als Fallback. `App.tsx` zeigt offene Rückfragen aus allen Cockpits als globales Banner. | `tests/test_v11.py::EventHubTests`; Routen `/api/events` und `/api/projects/{ident}/pilot/events`; Route-Registrierung in `backend/tests/test_api_v11.py`. |
+| V11-8 | Recherche mit Domainfilter, Quellenbelegen und Cache | `toolforge_pilot/research.py` normalisiert Domainfilter, lehnt lokale/private und IP-Literal-Ziele ab, öffnet Quellen, extrahiert Textbelege, cached Treffer sieben Tage und ordnet sie Aufgabe oder Fehler zu. Suchergebnis-Snippets allein gelten nicht als Nachweis. | `tests/test_v11.py::ResearchTests`; `/pilot/research`; UI-Bereich „Recherche mit Textbelegen“. |
+| V11-9 | Betrieb, Wiederherstellung und Installer | `toolforge_pilot/operations.py` rotiert Diagnosejournale, exportiert/importiert vollständige Projekte als ZIP mit Manifest und Pfadprüfung, listet Plan-Sicherungen und meldet Installer-/Tray-Status. `installer/ToolForge.iss` und `build_installer.ps1` bauen einen Windows-Installer; `TOOLFORGE_SIGN_CERT` steuert die optionale Signatur. `toolforge_pilot/tray.py` wird optional in `start_toolforge.py` gestartet. | `tests/test_v11.py::EnvironmentAndOperationsTests`; `backend/tests/test_api_v11.py` (Export, Presets, Operations); Installer-Dateien und README; Tray optional über `requirements-tray.txt`. |
+| V11-10 | Sandbox-Komfort in der UI | `backend/sandbox.py` validiert Speicher, CPUs, Prozesslimit und Loopback-Ports, verwaltet Projektimages und interne Netzwerke und installiert pip-/npm-Pakete in abgeleiteten Images. `AdvancedPanel.tsx` bietet die Bedienung; `PilotPanel.tsx` enthält die Ressourcenfelder. Docker bleibt optional und fällt ohne Installation sauber zurück. | `tests/test_v11.py::SandboxTests`; `backend/tests/test_api_v11.py::test_v11_sandbox_status_has_graceful_fallback`; `/pilot/sandbox*`. |
+
+## Versions- und Branding-Abgleich
+
+- API und FastAPI-Metadaten melden `1.1.0`, Workbench-Stage `11`.
+- Frontend-Paket und Lockfile tragen `1.1.0`; Sidebar und Roadmap zeigen V1.1 beziehungsweise elf Etappen.
+- Startbanner, Setup-Ausgabe, Hilfe und Dokumentation verweisen auf V1.1.
+- Das eigenständige SVG-„D“ bleibt entfernt. Unten links steht genau ein „by DigitEgal“, verlinkt auf <https://digitegal.de>.
+- Das Frontend enthält weiterhin keine automatische Cloud-Anbindung; Websuche und Modellzugriffe bleiben lokal beziehungsweise ausdrücklich opt-in.
+
+## Teständerungen gegenüber V1.0
+
+- `backend/tests/test_api.py` erwartet die API-Version `1.1.0`.
+- `tests/test_v08.py` prüft beim Aider-Setup die Verwendung von `requirements-aider.txt` statt eines ungepinnten `aider-chat`-Arguments. Die Datei pinnt `aider-chat==0.86.2`.
+- Neue V1.1-Tests: `tests/test_v11.py` und `backend/tests/test_api_v11.py`.
+- Die bestehende Prozessbaumpüfung wurde um einen Windows-`taskkill /T`-Fallback ergänzt, damit ein Kindprozess nicht durch das kurze Zeitfenster vor der Job-Objekt-Zuordnung überlebt.
+
+## Prüfgrenzen
+
+- Die automatisierten Tests simulieren LM-Studio-, Docker- und Modellantworten. Reale Modellqualität, VRAM-Werte, Tokens/s und Quantisierungen müssen auf der Zielhardware gemessen werden.
+- Ein echter Docker-Build, ein realer Aider-Lauf und ein signierter Installer wurden in dieser Umgebung nicht ausgeführt. Der Installer ist vorbereitet; ohne Zertifikat bleibt er unsigniert.
+- Die Browser-Abnahme nutzt einen installierten Chrome/Edge im Headless-Modus. Ohne Browser schlägt ein deklariertes Browser-Szenario nachvollziehbar fehl.
+- Tray und Browser-App-Fenster werden nur gestartet, wenn die jeweiligen optionalen Komponenten beziehungsweise Browser vorhanden sind.

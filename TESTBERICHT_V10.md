@@ -1,5 +1,7 @@
 # Testbericht ToolForge Pilot V1.0
 
+> **Historischer Stand V1.0.** Aktueller Bericht: [TESTBERICHT_V11.md](TESTBERICHT_V11.md).
+
 Prüfdatum: 10.11.2026. Basis: bereitgestellte Version 0.8, vollständig erhalten und um die V1.0-Pflichtpunkte sowie die fehlenden v0.9-Funktionen erweitert.
 
 ## Automatisierte Tests

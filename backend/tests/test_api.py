@@ -22,7 +22,7 @@ def test_health_and_empty(client):
     assert client.get('/api/health').json()=={'status':'ok'}
     assert client.get('/api/projects').json()==[]
     assert client.get('/api/groups').json()==[]
-    assert client.get('/api/workbench').json()['version']=='1.0.0'
+    assert client.get('/api/workbench').json()['version']=='1.1.0'
 
 def test_create_get_list(client):
     result=client.post('/api/projects',json={'name':'  Test ü  ','description':'Beschreibung'})

@@ -9,6 +9,7 @@ import type { FormEvent, ReactNode } from 'react';
 
 type Project = { id: string; name: string; description: string; created_at: string; folder_path?: string | null; archived?:boolean; group_id?: string | null };
 type ProjectGroup = { id: string; name: string; created_at: string; project_count: number };
+type GlobalQuestion = { id: string; folder: string; project: string; task: string; title: string; question: string; status?: string };
 type Layout = 'grid' | 'list';
 type Errors = { name?: string; description?: string; general?: string };
 type IconName = 'grid' | 'plus' | 'search' | 'arrow' | 'sun' | 'moon' | 'folder' | 'close' | 'pilot' | 'route' | 'check' | 'refresh' | 'info';
@@ -59,7 +60,8 @@ const stages = [
   ['Visuelle Workflows', 'Tools über Ein- und Ausgaben miteinander verbinden.'],
   ['Durchgängige Abnahme', 'CSV validieren, Duplikate entfernen und Excel exportieren.'],
   ['Docker-Sandbox', 'Projektbefehle optional im Container ausführen.'],
-  ['Sandbox-Netzwerke', 'Gewählte Projektcontainer in einem internen Netz verbinden.']
+  ['Sandbox-Netzwerke', 'Gewählte Projektcontainer in einem internen Netz verbinden.'],
+  ['Analyse & Betrieb', 'Inkrementeller Index, Messreihen, Anwendungsabnahme, Graph, Presets und Sicherungen.']
 ];
 
 export default function App() {
@@ -79,6 +81,7 @@ export default function App() {
   const [pilotBusy, setPilotBusy] = useState(false); const [pilotError, setPilotError] = useState('');
   const [toast, setToast] = useState('');
   const [questions, setQuestions] = useState<string[]>([]);
+  const [globalQuestions, setGlobalQuestions] = useState<GlobalQuestion[]>([]);
   const [shutdown, setShutdown] = useState(false);
   const [groups, setGroups] = useState<ProjectGroup[]>([]);
   const [layout, setLayout] = useState<Layout>(() => { try { return localStorage.getItem('toolforge-project-layout') === 'list' ? 'list' : 'grid'; } catch { return 'grid'; } });
@@ -92,6 +95,25 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem('toolforge-project-layout', layout); } catch { /* Private-mode storage may be unavailable. */ } }, [layout]);
   useEffect(() => { const handler = (event: Event) => { const mode = (event as CustomEvent<string>).detail; if (mode === 'main') { setView('projects'); setTour('main'); return; } if (mode === 'developer') { if (!workspaceProject) { setToast('Öffne zuerst ein Projekt mit Arbeitsordner, um das Entwickler-Tutorial zu starten.'); return; } try { localStorage.setItem('toolforge-dev-tutorial-seen', '1'); } catch { /* unavailable */ } setView('pilot'); setDevelopRequest(value => value + 1); setTour('developer'); } }; window.addEventListener('toolforge-tour', handler); return () => window.removeEventListener('toolforge-tour', handler); }, [workspaceProject]);
   useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    let active = true; let source: EventSource | undefined; let timer: number | undefined;
+    const connect = () => {
+      if (!active) return;
+      source = new EventSource('/api/events');
+      source.addEventListener('questions', event => {
+        try {
+          const data = JSON.parse((event as MessageEvent).data) as { questions?: GlobalQuestion[] };
+          const rows = Array.isArray(data.questions) ? data.questions : [];
+          setGlobalQuestions(rows);
+          // Outside the cockpit, surface global questions through the sound/badge channel.
+          if (view !== 'pilot') setQuestions(rows.map(row => `${row.project}: ${row.title || row.task}`));
+        } catch { /* Ignore malformed heartbeat payloads. */ }
+      });
+      source.onerror = () => { source?.close(); source = undefined; if (active) timer = window.setTimeout(connect, 5000); };
+    };
+    connect();
+    return () => { active = false; if (timer) window.clearTimeout(timer); source?.close(); };
+  }, [view]);
   useEffect(() => { if (modal && dialog.current && !dialog.current.open) dialog.current.showModal(); if (!modal && dialog.current?.open) dialog.current.close(); if (modal === 'create') nameInput.current?.focus(); }, [modal]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 5000); return () => clearTimeout(t); }, [toast]);
   async function refresh() {
@@ -214,11 +236,16 @@ export default function App() {
         <button data-tour="nav-help" className={view==='help'?'nav active':'nav'} onClick={()=>setView('help')}><Icon name="info"/>Hilfe</button>
       </nav>
       <section className="pilot-card"><div className="pilot-symbol"><Icon name="pilot" /></div><h2>Dein Pilot ist dabei.</h2><p>Aufgaben planen und Aider schrittweise arbeiten lassen.</p><button data-tour="pilot-open" className="button secondary" onClick={() => { const active=projects.find(p=>!p.archived);if(active){setWorkspaceProject(active);setView('pilot');}else{setToast('Lege zuerst ein Projekt an und verbinde einen Arbeitsordner.');} }}>Pilot öffnen<Icon name="arrow" /></button></section>
-      <div className="sidebar-bottom"><span className="local-dot" />Lokal auf deinem Rechner<span className="version">V1.0 · Pilot + Workbench</span><DigitEgalLogo compact /></div>
+      <div className="sidebar-bottom"><span className="local-dot" />Lokal auf deinem Rechner<span className="version">V1.1 · Pilot + Workbench</span><DigitEgalLogo compact /></div>
     </aside>
     <div className="main-shell">
       <header className="topbar"><button data-tour="shutdown" className="button secondary" onClick={()=>void shutDown()}>ToolForge beenden</button><div><span className="breadcrumb">Workbench</span><span className="slash">/</span><strong>{view === 'projects' ? 'Projekte' : view === 'pilot' ? 'Entwicklungscockpit' : view==='help'?'Hilfe':'Entwicklungspfad'}</strong></div><div className="topbar-actions" data-tour="topbar-actions"><QuestionSound questions={questions} /><button className="icon-button" aria-label={theme === 'dark' ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren'} title="Design wechseln" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}><Icon name={theme === 'dark' ? 'sun' : 'moon'} /></button></div></header>
       <main id="main" tabIndex={-1}>
+        {globalQuestions.length > 0 && view !== 'pilot' && <div className="global-question-banner" role="status">
+          <Icon name="info" />
+          <div><strong>{globalQuestions.length} offene Rückfrage{globalQuestions.length === 1 ? '' : 'n'}</strong><p>{globalQuestions.slice(0, 2).map(row => `${row.project}: ${row.title || row.task} — ${row.question}`).join(' · ')}</p></div>
+          <button className="button secondary" onClick={() => { const target = projects.find(item => item.folder_path === globalQuestions[0].folder); if (target) { setWorkspaceProject(target); setView('pilot'); } else setToast('Projekt nicht in der Übersicht gefunden. Öffne es erneut.'); }}>Im Cockpit öffnen</button>
+        </div>}
         {view === 'help' ? <HelpPanel projects={projects}/> : view === 'pilot' && workspaceProject ? <PilotPanel key={workspaceProject.id} project={workspaceProject} developRequest={developRequest} onDevelopOpened={()=>setDevelopRequest(0)} onQuestions={setQuestions} onBack={()=>setView('projects')} onProject={project=>{setWorkspaceProject(project);setProjects(old=>old.map(p=>p.id===project.id?project:p));}} /> : view === 'projects' ? <>
           <section className="page-heading"><div><div className="eyebrow">VON DER IDEE ZUM EIGENEN TOOL</div><h1>Deine Projekte.</h1><p>Ein Platz für deine Ideen. Lokal gespeichert, bereit für den nächsten Schritt.</p></div><button data-tour="new-project" className="button primary" onClick={openCreate}><Icon name="plus" />Neues Projekt</button></section>
           <div className="project-toolbar" data-tour="project-toolbar">
@@ -243,7 +270,7 @@ export default function App() {
           </div>}
           <footer className="workspace-note"><Icon name="info" /><span>Projekte, Code, Prüfungen, Git und Workflows – lokal in einer Workbench.</span></footer>
         </> : <>
-          <section className="page-heading"><div><div className="eyebrow">SCHRITT FÜR SCHRITT</div><h1>Der Entwicklungspfad.</h1><p>Ein klares Ziel. Zehn überprüfbare Etappen.</p></div><span className="stage-badge">Etappen 1–10 integriert</span></section>
+          <section className="page-heading"><div><div className="eyebrow">SCHRITT FÜR SCHRITT</div><h1>Der Entwicklungspfad.</h1><p>Ein klares Ziel. Elf überprüfbare Etappen.</p></div><span className="stage-badge">Etappen 1–11 integriert</span></section>
           <div className="roadmap">{stages.map(([title, text], i) => <article className={i === 0 ? 'stage current' : 'stage'} key={title}><span className="stage-number">{i === 0 ? <Icon name="check" /> : String(i + 1).padStart(2, '0')}</span><div><h2>{title}</h2><p>{text}</p></div><span className="stage-status">{'Verfügbar'}</span></article>)}</div>
           <div className="roadmap-note"><Icon name="pilot" /><div><h2>Pilot und Workbench gehören zusammen.</h2><p>Der Pilot steuert die Entwicklungsaufträge. Die Workbench verwaltet deine Projekte. Arbeitsordner, Aufgabenpläne und Automatikläufe sind im Entwicklungscockpit integriert. Editor, Python-Jobs, Prüfungen, Git, KI-Vorschläge und visuelle Workflows stehen im Entwicklungsbereich bereit.</p></div></div>
         </>}

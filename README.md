@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-V1.0-b8a3ff" alt="Version V1.0">
+  <img src="https://img.shields.io/badge/version-V1.1-b8a3ff" alt="Version V1.1">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-132%20passed-2ea44f" alt="132 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-149%20passed-2ea44f" alt="149 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -29,28 +29,32 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 
 | Bereich | Funktionen |
 |---|---|
-| **Projekte** | Anlegen, öffnen, durchsuchen, archivieren, löschen mit Bereinigungsvorschau; Kachel- und Listenansicht; Projektgruppen; wiederherstellbare Ordnerlöschung; getrennte pip-/Chocolatey-/npm-Freigaben |
-| **Pilot** | Zielbeschreibung, Modell-Vorabcheck, prüfbarer Aufgabenplan, Aider-Batchausführung, Rückfragen, Pause/Fortsetzen, Reparaturstrategien, Erweiterungen ohne Neustart, Fortschrittserhalt, Projektprotokolle |
-| **Modellvergleich** | Drei bis sechs Kandidaten, identische Arbeitsproben, ein oder zwei Temperaturen, anonymisierte Auswertung, Empfehlung mit ausdrücklicher Übernahme, Kontextprüfung inklusive kleiner LM-Studio-Rundungsabweichungen |
+| **Projekte** | Anlegen, öffnen, durchsuchen, archivieren, löschen mit Bereinigungsvorschau; Kachel- und Listenansicht; Projektgruppen; ZIP-Export/Import mit Manifest; wiederherstellbare Ordnerlöschung; getrennte pip-/Chocolatey-/npm-Freigaben |
+| **Pilot** | Inkrementelle Projektanalyse mit Symbolen und Abhängigkeiten, Zielbeschreibung, Modell-Vorabcheck, prüfbarer Aufgabenplan mit Diff-Vorschau, Aufgaben-Graph, Aider-Batchausführung, Rückfragen, Pause/Fortsetzen, Reparaturstrategien, Erweiterungen ohne Neustart, Fortschrittserhalt, Projektprotokolle |
+| **Modellvergleich** | Drei bis sechs Kandidaten, identische Arbeitsproben, ein oder zwei Temperaturen, anonymisierte Auswertung, Empfehlung mit ausdrücklicher Übernahme, Kontextprüfung inklusive kleiner LM-Studio-Rundungsabweichungen; empirische Messreihen mit Wiederholungen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung pro Hardware, Quantisierung und Aufgabentyp |
 | **Entwicklung** | Dateibaum und CodeMirror-Editor, konfliktgeprüftes Speichern mit Sicherungen, Python-Ausführung mit Live-Ausgabe und Abbruch, pytest/Ruff/mypy, Git-Status/Diff/ausgewählte Commits/Historie |
 | **KI-Unterstützung** | Einzeldatei-Vorschläge mit Diff und ausdrücklicher Übernahme; Erweiterungsvorschläge nach Kategorien; dokumentgestützter Hilfechat |
 | **Workflows** | Visueller Knotengraph, Validierung, CSV prüfen, Duplikate entfernen, Excel exportieren, Python-Knoten |
-| **Recherche & Diagnose** | Optionale DuckDuckGo-Suche mit Journal, ausführliche Fehlerprotokolle mit Redaktion von Geheimnissen |
-| **Sandbox** | Optionale Docker-Ausführung für Projektbefehle und Python-Workflowknoten, explizite interne Netzwerke |
-| **Bedienung** | Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, Hilfe direkt in der App |
-| **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Deinstallationsskript |
+| **Abnahme** | Deklarierte CLI-, lokale HTTP- und Headless-Browser-Szenarien als echte Anwendungsabnahme; getrennte Prüfung von Teständerungen mit Baseline und Review-Schritt |
+| **Recherche & Diagnose** | Recherche mit Domainfilter, geöffneten Quellen, Textbelegen und Cache; Journal; ausführliche Fehlerprotokolle mit Redaktion von Geheimnissen |
+| **Sandbox** | Optionale Docker-Ausführung für Projektbefehle und Python-Workflowknoten; Images, interne Netzwerke, Speicher-/CPU-/Prozesslimits, Loopback-Ports und Paketinstallation im Container |
+| **Bedienung** | Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App |
+| **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Logrotation, Plan-Sicherungen, Deinstallationsskript, optionales Tray-Symbol und vorbereiteter Windows-Installer |
 
-## Neu in V1.0
+## Neu in V1.1
 
-- **Pillow-Buildfehler werden selbst gelöst:** Scheitert ein Quelltext-Build, sucht ToolForge per PyPI-Metadaten nach einer passenden Wheel-Version, recherchiert optional den Fehler und installiert die geprüfte Version erneut. Der Plan wird neu versioniert und die Aufgabe erhält den Befund.
-- **Browser schließt mit:** Wurde die UI in einem von ToolForge gestarteten Chrome-/Edge-App-Fenster geöffnet, beendet „ToolForge beenden“ auch dieses Fenster.
-- **Ein Klick bis zum Start:** Vorabcheck → Empfehlung übernehmen → Plan erstellen → Ausführung starten.
-- **Kleine Kontextabweichungen sind kein Abbruch:** Der von LM Studio tatsächlich geladene Wert wird als geprüftes Budget übernommen.
-- **Drei bis sechs Kandidaten** im Modell-Vorabcheck.
-- **Deinstallationsskript** für ToolForge-eigene Umgebungen, Buildartefakte und optional Benutzerdaten.
-- **V1.0-Oberfläche:** Projektgruppen, Kachel-/Listenansicht, geführte Tutorials, DigitEgal-Branding und MIT-Lizenz.
+- **Vollständige inkrementelle Projektanalyse:** Der Index speichert Dateisignaturen, Symbole, Importe und Abhängigkeiten; nur geänderte Dateien werden neu gelesen. Große Projekte werden in belegten, größenbegrenzten Teilschritten analysiert, inklusive Manifest und Abdeckungsanzeige.
+- **Empirische Messreihe statt Familienvorauswahl:** Wiederholte Arbeitsproben über mehrere Kontextgrößen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung; Ergebnisse werden pro Hardware, Quantisierung und Aufgabentyp zwischengespeichert.
+- **Plan-Diff mit Risikovorschau:** Abhängigkeiten, Aufwand, neue Prüfungen und bereits geprüfte Teile werden vor der Übernahme verglichen. Änderungen an geprüften Aufgaben benötigen eine ausdrückliche Bestätigung; vorher entsteht eine Plan-Sicherung.
+- **Anwendungsabnahme:** Deklarierte CLI-, HTTP- und Browser-Szenarien prüfen das fertige Werkzeug als Anwendung. Teständerungen werden gegen eine Baseline als Diff ausgewiesen und gesondert freigegeben.
+- **Reproduzierbare Umgebungen:** `aider-chat==0.86.2` und der getestete Controller-Stand sind gepinnt; Umgebungssperren enthalten Paketversionen, Dateihashes und Docker-Digests. Presets lassen sich ohne API-Schlüssel exportieren und importieren.
+- **Aufgaben-Graph:** Knoten, Kanten, kritischer Pfad, bereite Aufgaben und Dateikonflikte; Prioritäten werden vor der Aufgabenauswahl übernommen. Parallele Nutzung derselben Datei braucht eine ausdrückliche Freigabe.
+- **SSE und globale Rückfragen:** Session- und globale Ereigniskanäle aktualisieren die UI ohne dauerndes Polling; langsames Polling bleibt als Fallback. Offene Rückfragen erscheinen projektübergreifend.
+- **Belegte Recherche:** Domainfilter, Ablehnung lokaler/IP-Literal-Ziele, tatsächlich geöffnete Quellen, Textbelege, siebentägiger Cache und Zuordnung zu Aufgabe oder Fehler.
+- **Betrieb und Wiederherstellung:** Projekt-Export/Import als ZIP, Logrotation, Plan-Sicherungen, Installer-Definition, Build-/Signierskript und optionales Tray-Symbol.
+- **Sandbox-Komfort:** Ressourcenregler, Image- und Netzwerkverwaltung, Loopback-Ports und pip-/npm-Paketinstallation in abgeleiteten Projektimages.
 
-Die vollständige Zuordnung steht in [ABNAHME_V10.md](ABNAHME_V10.md). Die v0.9-Nachzügler und alle Regressionen von 0.1 bis 0.8 sind dort ebenfalls dokumentiert.
+Die vollständige Zuordnung steht in [ABNAHME_V11.md](ABNAHME_V11.md). Testumfang und Prüfgrenzen dokumentiert [TESTBERICHT_V11.md](TESTBERICHT_V11.md).
 
 ## Installation unter Windows
 
@@ -78,6 +82,8 @@ Stop_ToolForge.cmd         Notfall-Stopp bei hängender UI
 ```
 
 Node.js ist für die normale Nutzung nicht erforderlich – das gebaute Frontend liegt bei.
+
+**Optionaler Installer und Tray:** Unter [installer/](installer/README.md) liegt eine Inno-Setup-6-Definition mit Build- und Signierskript. Der Installer installiert nach `%LOCALAPPDATA%\Programs\ToolForge`; Python 3.11 oder neuer bleibt Voraussetzung. Ohne Code-Signaturzertifikat (`TOOLFORGE_SIGN_CERT`) wird er unsigniert gebaut. Das Tray-Symbol ist optional und benötigt `pip install -r requirements-tray.txt`; ohne diese Pakete startet ToolForge normal weiter.
 
 ### Linux
 
@@ -127,15 +133,16 @@ python uninstall_toolforge.py --yes --keep-data
 
 ## Dokumentation
 
-- [Abnahme und Anforderungsabgleich V1.0](ABNAHME_V10.md)
-- [Testbericht V1.0](TESTBERICHT_V10.md)
-- [Testumgebung V1.0](TEST_ENVIRONMENT_V10.json)
+- [Abnahme und Anforderungsabgleich V1.1](ABNAHME_V11.md)
+- [Testbericht V1.1](TESTBERICHT_V11.md)
+- [Testumgebung V1.1](TEST_ENVIRONMENT_V11.json)
 - [Entwicklungspfad](TOOLFORGE_ROADMAP.md)
 - [LM Studio und Modell-Vorabcheck](LM_STUDIO_PRESETS.md)
 - [Start und Projekte](help/01_Start_und_Projekte.md)
 - [Modelle und Aufgaben](help/02_Modelle_und_Aufgaben.md)
 - [Entwicklungsbereich](help/03_Entwicklungsbereich.md)
 - [Recherche, Diagnose und Sandbox](help/04_Recherche_Diagnose_Sandbox.md)
+- [Windows-Installer](installer/README.md)
 - [Nächste Optimierungen](NAECHSTE_SCHRITTE.md)
 
 Die Hilfe ist auch direkt in der App unter **Hilfe** erreichbar.
@@ -148,7 +155,7 @@ python -m pytest -q tests backend/tests
 npm --prefix frontend run build
 ```
 
-Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die Tests verwenden isolierte Projekte und simulierte Modell-/Docker-Antworten. Reale Modellqualität, GPU-/VRAM-Verhalten, Docker Desktop, echte Aider-Läufe und der Windows-Browserstart müssen auf der Zielmaschine zusätzlich geprüft werden. Details und Grenzen: [TESTBERICHT_V10.md](TESTBERICHT_V10.md).
+Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die Tests verwenden isolierte Projekte und simulierte Modell-/Docker-Antworten. Reale Modellqualität, GPU-/VRAM-Verhalten, Docker Desktop, echte Aider-Läufe, Signierung und Tray müssen auf der Zielmaschine zusätzlich geprüft werden. Details und Grenzen: [TESTBERICHT_V11.md](TESTBERICHT_V11.md).
 
 ### Projektstruktur
 
@@ -159,15 +166,15 @@ frontend/src/       React-/TypeScript-Oberfläche inklusive Tutorials
 tests/              Engine-, Pilot- und Regressionstests
 backend/tests/      API-, Datenbank- und Migrationsprüfungen
 help/               Bedienungsdokumente für die App
+installer/          Inno-Setup-Definition, Build- und Signierskript
 docs/assets/        ToolForge- und DigitEgal-Logos
 ```
 
 ## Bekannte Grenzen
 
-- LM Studio muss installiert sein und die Native REST API v1 bereitstellen. Der Vorabcheck ist eine Stichprobe, keine Garantie für das objektiv beste Modell.
-- Die Kontextgröße wird als geladenes Budget geprüft, aber nicht über mehrere Größen empirisch optimiert.
-- Die KI-Projektanalyse arbeitet mit begrenzten Quelltextausschnitten und weist ausgelassene Dateien aus.
-- Docker, Aider und GPU-Verhalten werden nicht durch simulierte Tests ersetzt.
+- LM Studio muss installiert sein und die Native REST API v1 bereitstellen. Die Messreihe empfiehlt nur eine auf dieser Hardware gemessene Stichprobe, keine allgemein beste Modellfamilie.
+- Der Modell-Vorabcheck und die Messreihe ersetzen keine fachliche Prüfung. Quantisierung, Treiber und andere laufende GPU-Anwendungen beeinflussen Tokens/s, VRAM-Spitzen und Qualitätsstreuung.
+- Docker, Aider, GPU-Messungen, Tray und Installer-Signierung werden nicht durch simulierte Tests ersetzt. In der dokumentierten Testumgebung lief kein Docker-Daemon; Inno Setup und `signtool` waren nicht installiert.
 - Ein vollständig eingefrorener Betriebssystemprozess muss im Taskmanager beendet werden. ToolForge beendet niemals pauschal fremde Python-Prozesse.
 - Ein Browser außerhalb des ToolForge-App-Fensters darf per Skript nicht geschlossen werden; dort erscheint ein Abschlussbildschirm.
 
@@ -185,6 +192,7 @@ docs/assets/        ToolForge- und DigitEgal-Logos
 | 0.8 | Sechs Probleme und sieben Verbesserungen: Setup, Rückfragen, Fortschritt, Reparatur, Hilfe, Ton, Websuche, Diagnose |
 | 0.9 | Projektgruppen, Listenansicht, Tutorials, Branding – in V1.0 nachgezogen |
 | **V1.0** | **Pillow-Selbstreparatur, Browser-Schließen, Ein-Klick-Ablauf, Kontexttoleranz, 3–6 Kandidaten, Deinstallation** |
+| **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
 
 ## Lizenz und Credits
 

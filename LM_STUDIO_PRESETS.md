@@ -1,9 +1,9 @@
-# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.0
+# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.1
 
 ## Bedienung
 
 1. LM Studio starten, lokalen Server aktivieren. Benötigt wird die Native REST API v1 mit `/api/v1/models`, `/load` und `/unload`. Andere Anwendungen am selben Modellserver während des Vergleichs pausieren.
-2. ToolForge über `Start_ToolForge_Pilot.cmd` öffnen, Projekt verbinden. Unter Einstellungen API-Adresse und gegebenenfalls Token speichern.
+2. ToolForge über `Start_ToolForge.cmd` öffnen, Projekt verbinden. Unter Einstellungen API-Adresse und gegebenenfalls Token speichern.
 3. Unter Aufgabenplan das konkrete Ziel eingeben. Für einen Quellenvergleich einen repräsentativen Text mit Anfang, Mitte, Ende und bekannten Prüfpunkten mitgeben.
 4. Im Modell-Vorabcheck ein Testprofil wählen und „Installierte Modelle prüfen & Kandidaten vorschlagen“ drücken. Drei bis sechs Modelle sowie ein allgemeines Auswertungsmodell auswählen. Es werden nur tatsächlich vom Server gemeldete Modellschlüssel verwendet.
 5. Kontextbudget prüfen (Ausgangswert 20.000), optional zwei Temperaturen testen. Vorabcheck starten.
@@ -12,13 +12,19 @@
 
 Kleine Abweichungen zwischen angeforderter und tatsächlich geladener Kontextgröße sind zulässig, wenn der geladene Wert höchstens `max(512, 2 %)` unter der Anforderung liegt. ToolForge übernimmt dann den tatsächlich geladenen Wert als geprüftes Budget. Deutlich kleinere Kontexte werden weiterhin abgewiesen.
 
+## Empirische Messreihe (V1.1)
+
+Die Messreihe ergänzt den Vorabcheck um wiederholte Arbeitsproben über mehrere Kontextgrößen. Sie misst Tokens/s aus den Nutzungsdaten, VRAM-Spitzen über die Native API und die Streuung der Qualitätsbewertung. Ergebnisse werden pro Hardware-Fingerprint, Modell, Quantisierung, Aufgabentyp und maximalem Kontext zwischengespeichert und können im Bereich **Analyse & Betrieb** gestartet werden.
+
+Die Empfehlung ist eine gemessene Stichprobe für diese Maschine, keine globale Rangliste. Vor einem Lauf andere Modellserver und GPU-Anwendungen pausieren, dieselbe Probe verwenden und die Quantisierung dokumentieren. Ein Kontext, der auf einer GPU schnell wirkt, kann auf einer anderen Hardware oder bei anderer Quantisierung ungeeignet sein. Die Messreihe ersetzt weder den Vorabcheck noch die fachliche Prüfung der erzeugten Ergebnisse.
+
 Die Weboberfläche enthält diese Funktion. Der separat startbare alte Tkinter-Desktop-Pilot enthält sie nicht. Bestehende Projekte ohne Vorabcheck können weiter manuell arbeiten. Sobald ein Vorabcheck begonnen wurde, ist für Planung/Start eine gültige übernommene Empfehlung erforderlich. Eine geänderte Aufgabenbeschreibung erfordert einen neuen Check vor der Planerstellung; geänderte Einstellungen oder ein extern gewechseltes Modell werden ebenfalls erkannt.
 
 ## Ablauf und Grenzen
 
 Alle Kandidaten bekommen dieselbe Arbeitsprobe mit demselben Ausgabelimit. Es werden keine generierten Codeausschnitte ausgeführt. Formatfehler, abgeschnittene Antworten, Antwortzeiten und verfügbare Tokenstatistiken werden gespeichert. Das allgemeine Modell bekommt anonymisierte Proben in gemischter Reihenfolge. Bewertungsgewichtung: Korrektheit 40 %, Erfüllung 30 %, Klarheit 20 %, Laufzeit 10 %. Diese Punkte sind ein Modellurteil, keine objektiv gemessene Korrektheit. Manuelle Prüfung bleibt nötig.
 
-Der Bewerter darf nur eine gültige, tatsächlich getestete Probe empfehlen. Modell und Temperatur werden aus dieser Probe übernommen, Kontext und Ausgabelimit durch die Anwendung festgelegt. Der Kontext wird beim Laden überprüft; seine optimale Größe wird nicht durch einen Mehrgrößen-Benchmark bestimmt. Das Profil „Großer Kontext“ priorisiert ein installiertes Modell mit großer deklarierter Kontextgrenze. Ob es Quellen zuverlässig verarbeitet, zeigt erst eine geeignete Arbeitsprobe; ein großes Limit allein belegt keine Qualität.
+Der Bewerter darf nur eine gültige, tatsächlich getestete Probe empfehlen. Modell und Temperatur werden aus dieser Probe übernommen, Kontext und Ausgabelimit durch die Anwendung festgelegt. Der Kontext wird beim Laden überprüft. Zusätzlich kann die empirische Messreihe mehrere Kontextgrößen auf derselben Hardware vergleichen; sie ersetzt den Vorabcheck nicht, sondern liefert die gemessene Grundlage für die Auswahl. Das Profil „Großer Kontext“ priorisiert ein installiertes Modell mit großer deklarierter Kontextgrenze. Ob es Quellen zuverlässig verarbeitet, zeigt erst eine geeignete Arbeitsprobe; ein großes Limit allein belegt keine Qualität.
 
 Der Speicherwechsel erfolgt sequenziell über die API desselben Servers: alle gemeldeten Instanzen entladen, leere Instanzliste bestätigen, ein Modell laden, Instanz und Kontext bestätigen. Auch das Auswertungsmodell wird am Ende entladen. Bei Fehlern wird abgebrochen. Eine leere Instanzliste ist keine separate Messung des freien GPU-Speichers; externe Anwendungen können weiterhin VRAM belegen. Es gibt keine automatische Verkleinerung des Kontexts nach einem Ladefehler, damit Ergebnisse vergleichbar bleiben. Kontext anschließend reduzieren und erneut starten.
 
@@ -83,4 +89,4 @@ Den tatsächlichen Modellschlüssel einsetzen. Vor einem großen Modell kann `lm
 5. https://huggingface.co/Qwen/Qwen3.5-9B
 6. https://github.com/openai/gpt-oss
 
-Hardwaremessungen auf deinem Rechner und echte Modellqualitätsvergleiche wurden bei der Erstellung dieses Pakets nicht durchgeführt.
+Reale Hardwaremessungen auf deinem Rechner und echte Modellqualitätsvergleiche wurden bei der Erstellung dieses Pakets nicht durchgeführt. Die Messreihe ist implementiert und durch simulierte Tests abgesichert; die Zielhardware muss separat gemessen werden.
