@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Snapshot } from './PilotPanel';
+import type { Snapshot } from './pilotTypes';
 
 type RequestFn = <T>(path: string, data?: unknown, method?: string) => Promise<T>;
 type Coverage = { files_total: number; files_included: number; chars_total: number; chars_included: number; percent: number; budget_chars: number; manifest_chars: number };

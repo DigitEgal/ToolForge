@@ -553,11 +553,19 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     def pilot_settings(ident: str, data: dict): return session_for(ident).configure(data)
 
     @app.post('/api/projects/{ident}/pilot/models')
-    def pilot_models(ident: str): return session_for(ident).models()
+    def pilot_models(ident: str, data: dict | None = None):
+        return session_for(ident).models(str((data or {}).get('source') or '') or None)
 
     @app.post('/api/projects/{ident}/pilot/opencode/status')
     def pilot_opencode_status(ident: str, data: dict | None = None):
         return session_for(ident).opencode_status(data or {})
+
+    @app.post('/api/projects/{ident}/pilot/opencode/console')
+    def pilot_opencode_console(ident: str):
+        try:
+            return session_for(ident).open_opencode_console()
+        except opencode.OpenCodeError as exc:
+            raise HTTPException(503, str(exc)) from exc
 
     @app.get('/api/projects/{ident}/opencode/v1/models')
     def opencode_bridge_models(ident: str):

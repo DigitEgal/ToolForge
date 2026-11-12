@@ -291,6 +291,42 @@ def _split_chunks(text: str, max_chars: int) -> Iterable[tuple[int, int, str]]:
         yield start, max(1, len(lines)), ''.join(buffer)
 
 
+def brief(project: Path, paths: list[str] | None = None, max_chars: int = 6000) -> dict:
+    """Compact symbol/import manifest for prompts; never includes source bodies.
+
+    Small models use this to understand file roles and call boundaries without
+    spending their limited context on unrelated project files.
+    """
+    project = Path(project).resolve()
+    index = load(project) or refresh(project)
+    files = index.get('files', {})
+    preferred = [name for name in (paths or []) if name in files]
+    # Include direct dependency names if the index knows them.
+    inferred = []
+    for name in preferred:
+        for dependency in files.get(name, {}).get('dependencies', [])[:8]:
+            if dependency in files and dependency not in preferred:
+                inferred.append(dependency)
+    order = list(dict.fromkeys(preferred + inferred))
+    if not order:
+        order = sorted(files)[:20]
+    rows = []
+    used = 0
+    for name in order:
+        row = files.get(name, {})
+        entry = {'path': name, 'language': row.get('language'), 'lines': row.get('lines', 0),
+                 'symbols': [item.get('name') for item in row.get('symbols', [])[:30] if item.get('name')],
+                 'imports': [item.get('module', '') for item in row.get('imports', [])[:30] if item.get('module')],
+                 'dependencies': row.get('dependencies', [])[:20]}
+        cost = len(json.dumps(entry, ensure_ascii=False)) + 2
+        if rows and used + cost > max(1000, int(max_chars)):
+            break
+        rows.append(entry)
+        used += cost
+    return {'files': rows, 'truncated': len(rows) < len(order),
+            'summary': index.get('summary', summary(index))}
+
+
 def context(project: Path, max_chars: int = 40000, paths: list[str] | None = None,
             index: dict | None = None) -> dict:
     """Return a complete, chunked analysis context with explicit coverage.

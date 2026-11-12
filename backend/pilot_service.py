@@ -11,7 +11,7 @@ import time
 import urllib.parse
 from toolforge_pilot.core import APP_ROOT, Store, Engine, AiderAdapter, atomic_json, data_root, fingerprint, project_path, progress, validate_plan
 from toolforge_pilot.profiles import profile, discover_models, adapt_plan, chat_plan, effective_edit
-from toolforge_pilot import opencode, project_index, benchmarks, planning, task_graph, scenarios, environments, operations
+from toolforge_pilot import opencode, project_index, benchmarks, planning, task_graph, scenarios, environments, operations, routing
 from toolforge_pilot.simulation import DemoAdapter
 from toolforge_pilot.preflight import Studio, MODEL_LOCK, evaluate, suggest, signature, context_compatible
 from backend.events import EventHub
@@ -20,6 +20,8 @@ AIDER_PYTHON = APP_ROOT / '.aider-venv' / ('Scripts/python.exe' if os.name=='nt'
 DEFAULTS = {'aider_python': str(AIDER_PYTHON) if AIDER_PYTHON.is_file() else sys.executable, 'python': sys.executable, 'base': 'http://localhost:1234/v1', 'model': '', 'context_tokens': 20000,
             'output_tokens': 2048, 'temperature': 0.2, 'top_p': 0.95, 'edit': 'auto', 'budget': 20, 'timeout': 900,
             'provider': 'lmstudio', 'opencode_fallback': True, 'opencode_order': [], 'small_model_mode': True,
+            'source_mode': 'local', 'preference': 'balanced', 'local_model': '', 'free_model': '',
+            'api_base': 'https://api.openai.com/v1', 'api_model': '',
             'sandbox':False,'sandbox_network':'','sandbox_memory':'4g','sandbox_cpus':2,'sandbox_pids':256,'sandbox_ports':'',
             'web_search':False, 'research_domains':'', 'debug_logging':False, 'allow_pip': False, 'allow_choco': False, 'allow_npm': False, 'simulation': False}
 
@@ -53,10 +55,37 @@ class Session(AssistanceMixin):
         if self.settings_path.is_file():
             settings = json.loads(self.settings_path.read_text(encoding='utf-8'))
             self.settings.update({k: v for k, v in settings.items() if k in DEFAULTS})
+        # Migrate V1.2/V1.3-pre settings: one active model was shared by every
+        # source. Combined presets need a stable model per source.
+        source_mode = self.settings.get('source_mode')
+        if source_mode not in routing.SOURCE_MODES:
+            source_mode = 'free' if self.settings.get('provider') == 'opencode' else 'local'
+            self.settings['source_mode'] = source_mode
+        if self.settings.get('preference') not in routing.PREFERENCE_LABELS:
+            self.settings['preference'] = 'balanced'
+        provider = self.settings.get('provider')
+        if provider not in ('lmstudio', 'opencode', 'api'):
+            provider = routing.source_provider(routing.mode_sources(source_mode)[0])
+            self.settings['provider'] = provider
+        if routing.provider_source(provider) not in routing.mode_sources(source_mode):
+            self.settings['provider'] = routing.source_provider(routing.mode_sources(source_mode)[0])
+        model = str(self.settings.get('model') or '')
+        if not self.settings.get('local_model') and self.settings['provider'] != 'opencode':
+            self.settings['local_model'] = model
+        if not self.settings.get('free_model') and self.settings['provider'] == 'opencode':
+            self.settings['free_model'] = model
         if not isinstance(self.settings.get('opencode_order'), list):
             self.settings['opencode_order'] = []
+        self.remote_key = ''
+        self.blocked_sources = {}
+        # Normalize the active model from its source-specific field.
+        active_source = routing.provider_source(self.settings['provider'])
+        source_model = self.source_model(active_source)
+        if source_model:
+            self.settings['model'] = source_model
         self.opencode_last_model = ''
         self.opencode_retry = {}
+        self.plan_source = ''
         self.api_key = 'lm-studio'
         self.preflight_path = self.store.log_root.parent / 'preflight.json'
         self.preflight = None
@@ -117,7 +146,17 @@ class Session(AssistanceMixin):
                 'benchmark': self.benchmark,
                 'research': self.research_result,
                 'opencode': {'last_model': self.opencode_last_model,
-                             'blocked_models': sorted(name for name, until in self.opencode_retry.items() if until > time.time())},
+                             'blocked_models': sorted(name for name, until in self.opencode_retry.items() if until > time.time()),
+                             'blocked_sources': {name: until for name, until in self.blocked_sources.items()
+                                                 if until > time.time()},
+                             'order': self.effective_sources(include_blocked=True)},
+                'sources': {'mode': self.settings.get('source_mode', 'local'),
+                            'preference': self.settings.get('preference', 'balanced'),
+                            'labels': routing.SOURCE_LABELS,
+                            'modes': routing.MODE_LABELS,
+                            'preferences': routing.PREFERENCE_LABELS,
+                            'effective': list(self.effective_sources()),
+                            'remote_key_set': bool(self.remote_key)},
                 'operations': operations.operations_status(self.store.project),
                 'environment': {'lock_file': str(APP_ROOT / 'runtime' / 'environment-lock.json'),
                                 'presets': environments.list_presets()}}
@@ -125,14 +164,92 @@ class Session(AssistanceMixin):
     def provider(self):
         return self.settings.get('provider', 'lmstudio')
 
+    def active_source(self):
+        return routing.provider_source(self.provider())
+
+    def source_mode(self):
+        return self.settings.get('source_mode', 'local')
+
+    def preference(self):
+        return self.settings.get('preference', 'balanced')
+
+    def effective_sources(self, include_blocked=False):
+        blocked = None if include_blocked else self.blocked_sources
+        return list(routing.source_order(self.source_mode(), self.preference(), blocked))
+
+    def source_blocked(self, source):
+        until = self.blocked_sources.get(source)
+        if until and until <= time.time():
+            self.blocked_sources.pop(source, None)
+            until = None
+        return bool(until)
+
+    def block_source(self, source, retry_after_ms=None, reason=''):
+        retry = retry_after_ms if type(retry_after_ms) is int and retry_after_ms > 0 else 60 * 60 * 1000
+        self.blocked_sources[source] = time.time() + max(60, retry / 1000)
+        minutes = max(1, int(retry / 60000) + 1)
+        self.emit('log', f'{routing.source_title(source)} ist vorübergehend gesperrt (ca. {minutes} Minuten). '
+                         f'{reason}\n'.strip() + '\n')
+
+    def blocked_sources_message(self):
+        parts = []
+        for source, until in self.blocked_sources.items():
+            if until > time.time():
+                minutes = max(1, int((until - time.time()) / 60) + 1)
+                parts.append(f'{routing.source_title(source)} noch ca. {minutes} Minuten')
+        return '; '.join(parts)
+
+    def source_model(self, source=None):
+        source = source or self.active_source()
+        if source == 'free':
+            value = self.settings.get('free_model') or ''
+        elif source == 'api':
+            value = self.settings.get('api_model') or ''
+        else:
+            value = self.settings.get('local_model') or ''
+        # Settings migrated at runtime (or edited by other components) may only
+        # carry the active model. Keep that model usable for its own source.
+        if not value and source == self.active_source():
+            value = self.settings.get('model') or ''
+        return str(value)
+
+    def activate_source(self, source, model=''):
+        provider = routing.source_provider(source)
+        self.settings['provider'] = provider
+        if model:
+            if source == 'free':
+                self.settings['free_model'] = model
+            elif source == 'api':
+                self.settings['api_model'] = model
+            else:
+                self.settings['local_model'] = model
+            self.settings['model'] = model
+        else:
+            self.settings['model'] = self.source_model(source)
+        atomic_json(self.settings_path, self.settings)
+
     def provider_signature(self):
-        return 'opencode-free' if self.provider() == 'opencode' else self.settings['base']
+        # Active provider/model is intentionally not part of this signature:
+        # fallback may switch it. Accepted settings and goal are checked
+        # separately, while a changed preset/config invalidates the report.
+        return json.dumps({'mode': self.source_mode(), 'preference': self.preference(),
+                           'local': self.settings.get('base', ''),
+                           'api': self.settings.get('api_base', ''),
+                           'local_model': self.settings.get('local_model', ''),
+                           'free_model': self.settings.get('free_model', ''),
+                           'api_model': self.settings.get('api_model', ''),
+                           'free_order': self.settings.get('opencode_order', [])},
+                          sort_keys=True, ensure_ascii=False)
 
     def profile_key(self, candidate=None):
         candidate = candidate or self.settings
-        if candidate.get('provider') == 'opencode':
-            return 'opencode|' + str(candidate.get('model', ''))
-        return candidate['base'].rstrip('/') + '|' + str(candidate.get('model', ''))
+        provider = candidate.get('provider', 'lmstudio')
+        model = str(candidate.get('model', ''))
+        if provider == 'opencode':
+            return 'opencode|' + model
+        if provider == 'api':
+            return 'api|' + str(candidate.get('api_base', '')).rstrip('/') + '|' + model
+        return str(candidate.get('base', '')).rstrip('/') + '|' + model
 
     def opencode_client(self):
         try:
@@ -140,17 +257,74 @@ class Session(AssistanceMixin):
         except opencode.OpenCodeUnavailable as exc:
             raise ValueError(str(exc)) from exc
 
+    def api_studio(self, preflight=False):
+        return routing.APIStudio(self.settings.get('api_base', ''), self.remote_key,
+                                 int(self.settings.get('timeout', 900)), self.cancel,
+                                 fallback_model=self.settings.get('api_model', ''))
+
+    def local_studio(self, preflight=False):
+        return Studio(self.settings['base'], self.api_key, int(self.settings['timeout']), self.cancel)
+
+    def preflight_studio(self):
+        order = self.effective_sources(include_blocked=True)
+        if not order:
+            raise ValueError('Keine Modellquelle im gewählten Profil.')
+        prefix = len(order) > 1
+        return routing.RoutingStudio(
+            order,
+            local_factory=lambda: self.local_studio(True),
+            free_factory=lambda: opencode.OpenCodeStudio(
+                self.opencode_client(), fallback=False,
+                order=self.settings.get('opencode_order') or [], cancel=self.cancel,
+                timeout=int(self.settings['timeout'])),
+            api_factory=lambda: self.api_studio(True),
+            blocked=self.blocked_sources, prefix=prefix, cancel=self.cancel)
+
     def configure(self, settings):
         if self.busy: raise ValueError('Während eines Laufs erst pausieren oder stoppen.')
         clean = {k: v for k, v in settings.items() if k in DEFAULTS}
-        candidate = {**self.settings, **clean}
-        if candidate.get('provider') not in ('lmstudio', 'opencode'):
-            raise ValueError('Modellquelle: LM Studio oder OpenCode Free.')
+        old = self.settings
+        candidate = {**old, **clean}
+        mode = candidate.get('source_mode')
+        if mode not in routing.SOURCE_MODES:
+            raise ValueError('Modellquellen-Vorauswahl ist ungültig.')
+        preference = candidate.get('preference')
+        if preference not in routing.PREFERENCE_LABELS:
+            raise ValueError('Reihenfolge-Vorauswahl ist ungültig.')
+        mode_changed = mode != old.get('source_mode')
+        preference_changed = preference != old.get('preference')
+        provider = candidate.get('provider')
+        if mode_changed or preference_changed:
+            provider = routing.source_provider(routing.source_order(mode, preference)[0])
+        if provider not in ('lmstudio', 'opencode', 'api'):
+            raise ValueError('Modellquelle: LM Studio, OpenCode Free oder API.')
+        if routing.provider_source(provider) not in routing.mode_sources(mode):
+            raise ValueError('Die aktive Quelle gehört nicht zur gewählten Vorauswahl.')
+        candidate['provider'] = provider
         order = candidate.get('opencode_order') or []
         if not isinstance(order, list) or len(order) > 40 or any(
                 not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,160}', name) for name in order):
             raise ValueError('Fallback-Reihenfolge: höchstens 40 gültige Modell-IDs.')
         candidate['opencode_order'] = list(dict.fromkeys(name.strip() for name in order if name.strip()))
+        api_base = str(candidate.get('api_base') or '').strip().rstrip('/')
+        parsed = urllib.parse.urlsplit(api_base)
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname:
+            raise ValueError('API-Basis muss eine vollständige HTTP(S)-Adresse sein.')
+        candidate['api_base'] = api_base
+        for key in ('local_model', 'free_model', 'api_model', 'api_base', 'base'):
+            if not isinstance(candidate.get(key), str):
+                raise ValueError('Modell- und Adressfelder müssen Textwerte sein.')
+        # Keep the model that belongs to the active source. A pure preset change
+        # must not overwrite a previously saved free/local/API model.
+        if not mode_changed:
+            requested_model = str(clean.get('model', old.get('model', '')) or '').strip()
+            active_source = routing.provider_source(provider)
+            if requested_model or 'model' in clean:
+                if active_source == 'free': candidate['free_model'] = requested_model
+                elif active_source == 'api': candidate['api_model'] = requested_model
+                else: candidate['local_model'] = requested_model
+        candidate['model'] = self.source_model_for(candidate, routing.provider_source(provider),
+                                                   fallback=not mode_changed)
         p = profile(candidate)
         candidate.update(context_tokens=p['context_tokens'], output_tokens=p['output_tokens'], temperature=p['temperature'])
         try:
@@ -176,6 +350,7 @@ class Session(AssistanceMixin):
         validate_sandbox(candidate)
         self.settings = candidate
         if 'api_key' in settings: self.api_key = str(settings['api_key']) or 'lm-studio'
+        if 'remote_api_key' in settings: self.remote_key = str(settings['remote_api_key'])
         atomic_json(self.settings_path, candidate)
         # Each model has its own persistent context + temperature profile.
         profiles_file = data_root() / 'model-profiles.json'
@@ -186,22 +361,146 @@ class Session(AssistanceMixin):
             atomic_json(profiles_file, profiles)
         return self.snapshot()
 
-    def models(self):
+    @staticmethod
+    def source_model_for(candidate, source, fallback=True):
+        if source == 'free':
+            return str(candidate.get('free_model') or (candidate.get('model') if fallback else '') or '')
+        if source == 'api':
+            return str(candidate.get('api_model') or (candidate.get('model') if fallback else '') or '')
+        return str(candidate.get('local_model') or (candidate.get('model') if fallback else '') or '')
+
+    def source_profile(self, source, model, rows=None):
+        """Build the execution profile for one concrete source/model."""
+        p = profile(self.settings)
+        row = next((item for item in (rows or []) if item.get('id') == model), None)
+        if row:
+            limit = row.get('loaded_context') or row.get('max_context')
+            if type(limit) is int and limit > 0:
+                p['context_tokens'] = min(p['context_tokens'], limit)
+            p['small_model'] = row.get('small_model') is True
+        p['model'] = model
+        p['source'] = source
+        p['output_tokens'] = min(p['output_tokens'], max(256, p['context_tokens'] // 4))
+        return p
+
+    def resolve_source(self, source, model=''):
+        """Resolve the model for a source and validate it against its catalog."""
+        if source not in routing.SOURCE_LABELS:
+            raise ValueError('Unbekannte Modellquelle.')
+        model = str(model or self.source_model(source) or '')
+        discovery_error = None
+        try:
+            rows = [row for row in self.models(source) if row.get('type') != 'embedding']
+        except (ValueError, OSError) as exc:
+            rows = []
+            discovery_error = exc
+        available = {row['id']: row for row in rows}
+        if not available:
+            if not model:
+                if discovery_error:
+                    raise ValueError(routing.source_title(source) + ': ' + str(discovery_error)) from discovery_error
+                raise ValueError(routing.source_title(source) + ': keine Modelle verfügbar.')
+            # Some OpenAI-compatible servers do not expose a usable catalog.
+            # Keep a manually configured model usable with the saved profile.
+            return {'source': source, 'model': model, 'rows': [],
+                    'profile': self.source_profile(source, model, [])}
+        if not model:
+            loaded = [row for row in available.values() if row.get('loaded_context')]
+            model = (loaded[0] if loaded else next(iter(available.values())))['id']
+        if model not in available:
+            # A configured model may be newer than the cached catalog (or the
+            # server may hide it). The actual request remains authoritative;
+            # preflight still validates candidates against the live inventory.
+            return {'source': source, 'model': model, 'rows': list(available.values()),
+                    'profile': self.source_profile(source, model, list(available.values()))}
+        return {'source': source, 'model': model, 'rows': list(available.values()),
+                'profile': self.source_profile(source, model, list(available.values()))}
+
+    def plan_with_sources(self, goal, audit=None):
+        """Create a plan through the allowed sources in preference order.
+
+        Free-to-free model names share one quota, so the router never treats a
+        switch between them as a reset. It only falls back to local or paid API
+        sources that the selected preset explicitly allows.
+        """
+        errors = []
+        for source in self.effective_sources():
+            if self.cancel.is_set():
+                raise ValueError('Planung gestoppt.')
+            used = {'model': ''}
+            try:
+                prepared = self.resolve_source(source)
+                used['model'] = prepared['model']
+                p = prepared['profile']
+                self.phase = f'Plan wird über {routing.source_title(source)} erzeugt …'
+                self.emit('log', f'Planung über {routing.source_title(source)} · {prepared["model"]}.\n')
+                if source == 'free':
+                    def switched(old, new, exc):
+                        if exc.retry_after_ms:
+                            self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
+                        self.emit('log', f'OpenCode: {old} nicht verfügbar; weiter mit {new}.\n')
+                    plan = opencode.chat_plan(
+                        self.opencode_client(), goal, p, audit,
+                        order=self.settings.get('opencode_order') or [],
+                        fallback=bool(self.settings.get('opencode_fallback', True)),
+                        on_switch=switched,
+                        on_model=lambda name: (used.__setitem__('model', name),
+                                               setattr(self, 'opencode_last_model', name)))
+                else:
+                    base, key = ((self.settings['api_base'], self.remote_key) if source == 'api'
+                                 else (self.settings['base'], self.api_key))
+                    plan = chat_plan(base, key, prepared['model'], goal, p, audit)
+                self.activate_source(source, used['model'])
+                self.settings.update(context_tokens=p['context_tokens'], output_tokens=p['output_tokens'],
+                                     temperature=p['temperature'])
+                atomic_json(self.settings_path, self.settings)
+                self.plan_source = source
+                return plan
+            except opencode.OpenCodeError as exc:
+                errors.append(f'{routing.source_title(source)}: {exc}')
+                if getattr(exc, 'shared_quota', False) or exc.reason == 'rate_limit':
+                    self.block_source(source, exc.retry_after_ms, str(exc))
+            except (ValueError, OSError) as exc:
+                errors.append(f'{routing.source_title(source)}: {exc}')
+        detail = ' | '.join(errors[-3:]) or 'keine Quelle ausgewählt'
+        raise ValueError('Planung fehlgeschlagen. ' + detail +
+                         ' Bitte Lokal oder eine bezahlte API in der Modellquellen-Vorauswahl freigeben.')
+
+    def models(self, source=None):
         try: saved = json.loads((data_root() / 'model-profiles.json').read_text(encoding='utf-8'))
         except FileNotFoundError: saved = {}
-        if self.provider() == 'opencode':
+        source = source or self.active_source()
+        if source not in routing.SOURCE_LABELS:
+            raise ValueError('Unbekannte Modellquelle.')
+        if source == 'free':
             rows = self.opencode_client().models(refresh=True)
             values = [{'id': row['id'], 'loaded_context': row['context'], 'max_context': row['context'],
-                       'source': 'opencode-free', 'type': 'chat', 'name': row['name'],
-                       'family': row['family'], 'variants': row['variants'], 'free': True} for row in rows]
+                       'source': 'free', 'source_label': routing.source_title('free'), 'type': 'chat',
+                       'name': row['name'], 'family': row['family'], 'variants': row['variants'],
+                       'free': True, 'small_model': False, 'size_bytes': None,
+                       'quantization': None, 'selected_variant': ''} for row in rows]
             key = self.profile_key()
             for item in values:
                 item['saved_profile'] = saved.get('opencode|' + item['id'])
                 if not item['saved_profile'] and key.endswith('|' + item['id']):
                     item['saved_profile'] = saved.get(key)
             return values
+        if source == 'api':
+            rows = self.api_studio().inventory(refresh=True)
+            values = [{'id': row['key'], 'loaded_context': None,
+                       'max_context': row.get('max_context_length'), 'source': 'api',
+                       'source_label': routing.source_title('api'), 'type': 'chat',
+                       'name': row.get('name') or row['key'], 'free': False, 'small_model': False,
+                       'size_bytes': None, 'quantization': row.get('quantization'),
+                       'selected_variant': row.get('selected_variant', '')} for row in rows]
+            base_key = 'api|' + self.settings.get('api_base', '').rstrip('/') + '|'
+            for item in values:
+                item['saved_profile'] = saved.get(base_key + item['id'])
+            return values
         values = discover_models(self.settings['base'], self.api_key)
         for item in values:
+            item['source'] = 'local'
+            item['source_label'] = routing.source_title('local')
             item['saved_profile'] = saved.get(self.settings['base'].rstrip('/') + '|' + item['id'])
         return values
 
@@ -219,29 +518,98 @@ class Session(AssistanceMixin):
         return base + '/api/projects/' + ident + '/opencode/v1'
 
     def bridge_models(self):
-        if self.provider() != 'opencode':
-            raise ValueError('OpenCode-Brücke ist nur in der Modellquelle OpenCode Free aktiv.')
-        rows = self.opencode_client().models(refresh=True)
-        return {'object': 'list', 'data': [{'id': row['id'], 'object': 'model',
-                                            'created': int(row['released'] / 1000),
-                                            'owned_by': 'opencode'} for row in rows]}
+        """List models from every source the active preset allows."""
+        data = []
+        seen = set()
+        errors = []
+        for source in self.effective_sources(include_blocked=True):
+            try:
+                rows = self.models(source)
+            except (ValueError, OSError) as exc:
+                errors.append(f'{routing.source_title(source)}: {exc}')
+                continue
+            for row in rows:
+                if row.get('type') == 'embedding' or row['id'] in seen:
+                    continue
+                seen.add(row['id'])
+                data.append({'id': row['id'], 'object': 'model', 'created': 0,
+                             'owned_by': routing.source_provider(source),
+                             'x_toolforge_source': source})
+        if not data:
+            raise ValueError('Keine Modellquelle verfügbar. ' + ' '.join(errors))
+        return {'object': 'list', 'data': data}
 
     def bridge_chat(self, payload):
         if not isinstance(payload, dict):
             raise ValueError('Ungültige OpenAI-Anfrage.')
-        client = self.opencode_client()
         now = time.time()
         self.opencode_retry = {name: until for name, until in self.opencode_retry.items() if until > now}
-        skip = set(self.opencode_retry)
-        def switched(old, new, exc):
-            if exc.retry_after_ms:
-                self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
-            self.emit('log', f'OpenCode: {old} nicht verfügbar; weiter mit {new}.\n')
-        result = opencode.completion(client, payload, order=self.settings.get('opencode_order') or [],
-                                     fallback=bool(self.settings.get('opencode_fallback', True)),
-                                     skip=skip, on_switch=switched)
-        self.opencode_last_model = result['model']
-        self.publish('snapshot', {'phase': self.phase, 'busy': self.busy})
+        self.blocked_sources = {name: until for name, until in self.blocked_sources.items() if until > now}
+        errors = []
+        sources = list(self.effective_sources())
+        if not sources:
+            detail = self.blocked_sources_message()
+            raise opencode.OpenCodeError('Keine Modellquelle verfügbar. ' + detail, status=429,
+                                         reason='rate_limit')
+        # Keep the accepted/active source first, then fall back within the
+        # preset order. The preset, not the model name, decides whether a
+        # fallback to local or paid API is allowed.
+        active = self.active_source()
+        if active in sources:
+            sources.remove(active)
+            sources.insert(0, active)
+        for source in sources:
+            try:
+                if source == 'free':
+                    client = self.opencode_client()
+                    skip = set(self.opencode_retry)
+                    def switched(old, new, exc):
+                        if exc.retry_after_ms:
+                            self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
+                        self.emit('log', f'OpenCode: {old} nicht verfügbar; weiter mit {new}.\n')
+                    result = opencode.completion(client, payload,
+                                                 order=self.settings.get('opencode_order') or [],
+                                                 fallback=bool(self.settings.get('opencode_fallback', True)),
+                                                 skip=skip, on_switch=switched)
+                    self.opencode_last_model = result.get('model', '')
+                elif source == 'api':
+                    result = self.completion_via_source(payload, 'api')
+                else:
+                    result = self.completion_via_source(payload, 'local')
+                if source != self.active_source():
+                    self.emit('log', f'Modellquelle gewechselt: {routing.source_title(source)} übernimmt den laufenden Auftrag.\n')
+                    self.activate_source(source, self.source_model(source))
+                self.opencode_last_model = str(result.get('model') or self.source_model(source))
+                self.publish('snapshot', {'phase': self.phase, 'busy': self.busy})
+                return result
+            except opencode.OpenCodeError as exc:
+                errors.append(f'{routing.source_title(source)}: {exc}')
+                if getattr(exc, 'shared_quota', False) or exc.reason == 'rate_limit':
+                    self.block_source(source, exc.retry_after_ms, str(exc))
+            except (ValueError, OSError) as exc:
+                errors.append(f'{routing.source_title(source)}: {exc}')
+        raise opencode.OpenCodeError('Keine Ausweichquelle konnte die Anfrage beantworten. ' + '; '.join(errors[-3:]),
+                                     status=502, reason='all_sources_failed')
+
+    def completion_via_source(self, payload, source):
+        model = self.source_model(source)
+        if not model:
+            if source == 'api':
+                rows = self.api_studio().inventory(refresh=True)
+                if not rows:
+                    raise ValueError('Kein API-Modell konfiguriert.')
+                model = rows[0]['key']
+            else:
+                raise ValueError('Kein lokales Modell ausgewählt.')
+        body = json.loads(json.dumps(payload))
+        body['model'] = model
+        body['stream'] = False
+        base, key = ((self.settings['api_base'], self.remote_key) if source == 'api'
+                     else (self.settings['base'], self.api_key))
+        result = routing.post_completion(base, key, body, int(self.settings.get('timeout', 900)))
+        if not isinstance(result, dict) or not result.get('choices'):
+            raise ValueError('Ausweichquelle lieferte keine gültige Chat-Antwort.')
+        result.setdefault('model', model)
         return result
 
     def preview_plan(self, plan):
@@ -275,8 +643,8 @@ class Session(AssistanceMixin):
 
     def emit(self, kind, value):
         if kind == 'log':
-            key = self.api_key
-            if key and key != 'lm-studio': value = value.replace(key, '[REDACTED]')
+            for key in (self.api_key, self.remote_key):
+                if key and key != 'lm-studio': value = value.replace(key, '[REDACTED]')
             self.logs = (self.logs + value)[-100000:]
         elif kind == 'state': self.phase = value.get('message', '')
         self.publish(kind if kind in ('log', 'state') else 'snapshot', {'phase': self.phase})
@@ -287,7 +655,7 @@ class Session(AssistanceMixin):
             self.error = ''
             self.cancel.clear(); self.pause_request.clear()
             self.running = True
-            lock_needed = model_lock and self.provider() != 'opencode'
+            lock_needed = model_lock and 'local' in self.effective_sources(include_blocked=True)
             def run():
                 operation = function
                 while True:
@@ -299,7 +667,7 @@ class Session(AssistanceMixin):
                         if self.settings.get('debug_logging'):
                             import traceback
                             from toolforge_pilot.diagnostics import record
-                            record(self.store.project,'session_exception',traceback.format_exc(),[self.api_key])
+                            record(self.store.project,'session_exception',traceback.format_exc(),[self.api_key, self.remote_key])
                         self.error = str(exc); self.phase = 'Vorgang angehalten: ' + str(exc)
                         self.emit('log', '\nFEHLER: ' + str(exc) + '\n')
                     finally:
@@ -326,35 +694,76 @@ class Session(AssistanceMixin):
                 fallback=False if preflight else bool(self.settings.get('opencode_fallback', True)),
                 order=self.settings.get('opencode_order') or [], cancel=self.cancel,
                 timeout=int(self.settings['timeout']))
-        return Studio(self.settings['base'], self.api_key, int(self.settings['timeout']), self.cancel)
+        if self.provider() == 'api':
+            return self.api_studio(preflight)
+        return self.local_studio(preflight)
 
     def preflight_options(self, kind='coding'):
-        return suggest(self.studio(preflight=True).inventory(), kind)
+        studio = self.preflight_studio()
+        result = suggest(studio.inventory(), kind)
+        result['sources'] = studio.alternatives()
+        result['blocked'] = {source: until for source, until in self.blocked_sources.items()
+                             if until > time.time()}
+        result['blocked_message'] = self.blocked_sources_message()
+        result['prefix'] = studio.prefix
+        return result
 
     def run_preflight(self, data):
         goal = str(data.get('goal', '')).strip()
         candidates = data.get('candidates', [])
         if not isinstance(candidates, list) or not all(isinstance(x, str) for x in candidates):
             raise ValueError('Kandidaten müssen eine Liste von Modellschlüsseln sein.')
+        studio = self.preflight_studio()
+        try:
+            available = {row['key'] for row in studio.inventory()}
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+        judge = str(data.get('judge', ''))
+        if judge not in available:
+            if studio.is_blocked(judge):
+                raise ValueError('Das Auswertungsmodell ist vorübergehend nicht verfügbar. ' + self.blocked_sources_message())
+            raise ValueError('Auswertungsmodell ist nicht verfügbar: ' + judge)
+        kept = []
+        removed = []
+        for candidate in candidates:
+            if candidate in available:
+                kept.append(candidate)
+            elif studio.is_blocked(candidate):
+                removed.append(candidate)
+            else:
+                raise ValueError('Kandidat ist nicht verfügbar: ' + candidate)
+        if not kept:
+            raise ValueError('Alle Kandidaten sind vorübergehend nicht verfügbar. ' + self.blocked_sources_message())
+        prefix = studio.prefix
+
         def save(report):
             report['base'] = self.provider_signature()
             report['provider'] = self.provider()
+            report['source_mode'] = self.source_mode()
+            report['preference'] = self.preference()
+            report['sources'] = list(self.effective_sources(include_blocked=True))
+            report['source_prefix'] = prefix
+            report['skipped_sources'] = list(dict.fromkeys(removed + list(report.get('skipped_sources', []))))
             self.preflight = json.loads(json.dumps(report))
             atomic_json(self.preflight_path, report)
             history = self.store.log_root.parent / 'preflight-history'
             history.mkdir(exist_ok=True)
             atomic_json(history / (run_id + '.json'), report)
+
         def phase(text):
             self.phase = text
             self.emit('log', text + '\n')
+
         run_id = str(time.time_ns())
+
         def work():
             self.remaining_budget = 0
-            save({'status':'running','accepted':False,'goal':goal,'samples':[],'note':'Vergleich wird vorbereitet.'})
+            save({'status':'running','accepted':False,'goal':goal,'samples':[],
+                  'note':'Vergleich wird vorbereitet.'})
             try:
-                evaluate(self.studio(preflight=True), goal, candidates, str(data.get('judge','')),
-                    data.get('context_tokens',20000), str(data.get('kind','coding')),
-                    data.get('two_temperatures',True) is True, phase, save)
+                evaluate(self.preflight_studio(), goal, kept, judge,
+                         data.get('context_tokens', 20000), str(data.get('kind', 'coding')),
+                         data.get('two_temperatures', True) is True, phase, save)
             except Exception as exc:
                 self.preflight.update(status='error', error=str(exc), accepted=False)
                 save(self.preflight)
@@ -362,30 +771,69 @@ class Session(AssistanceMixin):
             self.phase = 'Vorabcheck fertig. Arbeitsproben prüfen und Empfehlung übernehmen.'
         return self.background(work)
 
+    def _adopt_alternative(self, report, source=None, model=None):
+        alternatives = report.get('alternatives') or []
+        if not alternatives:
+            return False
+        prefix = bool(report.get('source_prefix'))
+        for row in alternatives:
+            alt_source, alt_model = routing.split_key(row.get('model', ''), prefix)
+            alt_source = alt_source or row.get('source') or self.active_source()
+            if source and alt_source != source:
+                continue
+            if model and alt_model != model and row.get('model') != model:
+                continue
+            self.activate_source(alt_source, alt_model)
+            self.settings.update(temperature=row['temperature'],
+                                 context_tokens=row['context_tokens'],
+                                 output_tokens=min(2048, max(256, row['context_tokens'] // 4)))
+            report['accepted_settings'] = {
+                'provider': routing.source_provider(alt_source), 'source': alt_source,
+                'model': alt_model, 'temperature': row['temperature'],
+                'context_tokens': row['context_tokens'],
+                'output_tokens': min(2048, max(256, row['context_tokens'] // 4))}
+            report['accepted'] = True
+            report['base'] = self.provider_signature()
+            atomic_json(self.preflight_path, report)
+            atomic_json(self.settings_path, self.settings)
+            self.emit('log', f'Ausweichquelle aus dem Vorabcheck übernommen: {routing.source_title(alt_source)} · {alt_model}.\n')
+            return True
+        return False
+
     def accept_preflight(self, goal):
         report = self.preflight
         if not report or report.get('status') != 'ready': raise ValueError('Keine gültige Empfehlung vorhanden.')
         if report['goal_signature'] != signature(goal): raise ValueError('Aufgabe geändert. Vorabcheck erneut ausführen.')
         if report['base'] != self.provider_signature(): raise ValueError('Modellquelle geändert. Vorabcheck erneut ausführen.')
         recommendation = dict(report['recommendation'])
+        prefix = bool(report.get('source_prefix'))
+        source, raw_model = routing.split_key(recommendation.get('model', ''), prefix)
+        source = source or recommendation.get('source') or self.active_source()
+
         def work():
             self.phase = 'Empfohlenes Modell und Kontext laden …'
-            studio = self.studio(preflight=True)
+            studio = self.preflight_studio()
             try:
-                ident = studio.switch(recommendation['model'], recommendation['context_tokens'])
+                studio.switch(recommendation['model'], recommendation['context_tokens'])
                 actual = getattr(studio, 'actual_context', None)
-                # Adopt the context LM Studio actually confirmed instead of the requested value.
                 if type(actual) is not int: actual = recommendation['context_tokens']
-                values = {'temperature':recommendation['temperature'], 'context_tokens':actual,
-                          'output_tokens':min(recommendation['output_tokens'], max(256, actual//4))}
-                values['model'] = ident
+                self.activate_source(source, raw_model)
+                values = {'provider': routing.source_provider(source), 'source': source,
+                          'model': raw_model, 'temperature': recommendation['temperature'],
+                          'context_tokens': actual,
+                          'output_tokens': min(recommendation['output_tokens'], max(256, actual // 4))}
                 self.settings.update(values)
                 atomic_json(self.settings_path, self.settings)
                 report['recommendation']['context_tokens'] = actual
+                report['recommendation']['source'] = source
                 report['accepted_settings'] = values
                 report['accepted'] = True
+                # Acceptance can select a previously empty per-source model.
+                # Keep the configuration signature in sync so a later check
+                # validates the accepted profile instead of the pre-accept one.
+                report['base'] = self.provider_signature()
                 atomic_json(self.preflight_path, report)
-                self.phase = f'Empfehlung übernommen. Geprüfter Kontext: {actual} Tokens. Plan kann erstellt werden.'
+                self.phase = f'Empfehlung übernommen: {routing.source_title(source)} · {raw_model}. Geprüfter Kontext: {actual} Tokens.'
             except Exception:
                 report['accepted'] = False
                 atomic_json(self.preflight_path, report)
@@ -400,19 +848,53 @@ class Session(AssistanceMixin):
             raise ValueError('Vorabcheck abschließen und Empfehlung übernehmen.')
         if goal is not None and signature(goal) != report['goal_signature']:
             raise ValueError('Aufgabe geändert. Vorabcheck erneut ausführen.')
-        expected = report['accepted_settings']
-        if self.provider_signature() != report['base'] or any(self.settings[k] != v for k,v in expected.items()):
-            raise ValueError('Einstellungen weichen von der Empfehlung ab. Empfehlung erneut übernehmen oder Vorabcheck wiederholen.')
-        if self.provider() == 'opencode':
-            studio = self.studio(preflight=True)
-            rows = {row['id']: row for row in studio.client.models(refresh=True)}
-            if expected['model'] not in rows:
+        if self.provider_signature() != report['base']:
+            raise ValueError('Modellquelle geändert. Vorabcheck erneut ausführen.')
+        expected = dict(report['accepted_settings'])
+        source = expected.get('source') or routing.provider_source(expected.get('provider', self.provider()))
+        model = expected.get('model') or self.source_model(source)
+        if self.active_source() != source:
+            # A fallback source may already have been measured in the same
+            # preflight. Adopt its best valid sample instead of forcing a full rerun.
+            if not self._adopt_alternative(report, self.active_source(), self.source_model() or None):
+                raise ValueError('Aktive Modellquelle weicht von der Empfehlung ab. Empfehlung erneut übernehmen oder '
+                                 'Vorabcheck mit passender Vorauswahl wiederholen.')
+            expected = dict(report['accepted_settings'])
+            source = expected.get('source')
+            model = expected['model']
+        if self.source_model() != model:
+            if not self._adopt_alternative(report, source, self.source_model() or None):
+                raise ValueError('Einstellungen weichen von der Empfehlung ab. Empfehlung erneut übernehmen oder '
+                                 'Vorabcheck wiederholen.')
+            expected = dict(report['accepted_settings'])
+            source = expected.get('source')
+            model = expected['model']
+        for key, value in expected.items():
+            if key in ('source', 'provider'):
+                continue
+            if self.settings.get(key) != value:
+                raise ValueError('Einstellungen weichen von der Empfehlung ab. Empfehlung erneut übernehmen oder '
+                                 'Vorabcheck wiederholen.')
+        if source == 'free':
+            if self.source_blocked('free'):
+                if not self._adopt_alternative(report, 'local') and not self._adopt_alternative(report, 'api'):
+                    raise ValueError('Das Free-Tageslimit ist erschöpft. Vorabcheck mit „Free & Lokal“ oder '
+                                     '„Free & API“ wiederholen bzw. auf Lokal/API wechseln.')
+                expected = report['accepted_settings']; source = expected['source']; model = expected['model']
+            rows = {row['id']: row for row in self.opencode_client().models(refresh=True)}
+            if model not in rows:
                 raise ValueError('Freies OpenCode-Modell nicht mehr verfügbar. Vorabcheck wiederholen.')
-            if expected['context_tokens'] > rows[expected['model']]['context']:
+            if expected['context_tokens'] > rows[model]['context']:
                 raise ValueError('Kontext überschreitet das Modelllimit. Vorabcheck wiederholen.')
             return
+        if source == 'api':
+            try:
+                self.api_studio().switch(model, expected['context_tokens'])
+            except ValueError as exc:
+                raise ValueError('API-Modell/Kontext nicht bestätigt: ' + str(exc)) from exc
+            return
         instances = self.studio().instances()
-        if (len(instances) != 1 or instances[0]['id'] != expected['model']
+        if (len(instances) != 1 or instances[0]['id'] != model
                 or not context_compatible(expected['context_tokens'], instances[0].get('config',{}).get('context_length'))):
             raise ValueError('Geladenes Modell/Kontext geändert. Empfehlung erneut übernehmen.')
 
@@ -422,28 +904,11 @@ class Session(AssistanceMixin):
             self.remaining_budget = 0
             self.check_preflight(goal)
             self.phase = 'Plan wird aus der Beschreibung erzeugt …'
-            p = profile(self.settings)
-            if self.provider() == 'opencode' and not p['model']:
-                p['model'] = self.opencode_client().pick_default()
-                self.settings['model'] = p['model']
-                atomic_json(self.settings_path, self.settings)
-            if not p['model']: raise ValueError('Bitte zuerst ein Modell unter Einstellungen wählen.')
             folder = self.store.log_root.parent / 'planning'; folder.mkdir(exist_ok=True)
             def audit(attempt, raw, error):
                 atomic_json(folder / (str(time.time_ns()) + '.json'), {'attempt':attempt+1,'response':raw,'error':error})
                 self.phase = ('Planantwort wird korrigiert: ' + error) if error else 'Plan validiert; speichern …'
-            if self.provider() == 'opencode':
-                client = self.opencode_client()
-                def switched(old, new, exc):
-                    if exc.retry_after_ms:
-                        self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
-                    self.emit('log', f'OpenCode-Tageslimit für {old}; nutze {new}.\n')
-                plan = opencode.chat_plan(client, goal, p, audit, order=self.settings.get('opencode_order') or [],
-                                          fallback=bool(self.settings.get('opencode_fallback', True)),
-                                          on_switch=switched,
-                                          on_model=lambda name: setattr(self, 'opencode_last_model', name))
-            else:
-                plan = chat_plan(self.settings['base'], self.api_key, self.settings['model'], goal, p, audit)
+            plan = self.plan_with_sources(goal, audit)
             planning.backup_plan(self.store.project, self.store.state, 'Vor Planerzeugung')
             with self.answer_lock:
                 self.pending_answers.clear()
@@ -454,37 +919,22 @@ class Session(AssistanceMixin):
 
     def start(self, answer=''):
         if not self.store.state: raise ValueError('Zuerst einen Aufgabenplan erstellen oder laden.')
-        s = dict(self.settings)
         def work():
             self.apply_pending_improvements()
             self.phase = 'Projektstand und Modellprofil vergleichen …'
+            s = dict(self.settings)
             if s['simulation']:
                 plan = json.loads((APP_ROOT / 'examples' / 'demo_plan.json').read_text(encoding='utf-8'))
                 if self.store.state['plan'] != plan: raise ValueError('Simulation benötigt den unveränderten Beispielplan.')
                 adapter = DemoAdapter()
             else:
                 self.check_preflight()
-                if not s['model'] and self.provider() == 'opencode':
-                    s['model'] = self.opencode_client().pick_default()
-                    self.settings['model'] = s['model']
-                    atomic_json(self.settings_path, self.settings)
-                if not s['model']: raise ValueError('Bitte ein Modell auswählen.')
-                if self.provider() == 'opencode':
-                    # Fail with a clear message before Aider starts if the free service vanished.
-                    self.opencode_client().models(refresh=True)
-                p = profile(s)
-                p['provider'] = self.provider()
-                # Prefer the actual loaded/offered limit, never its theoretical maximum.
-                try:
-                    entries = self.models()
-                    match = next((x for x in entries if x['id'] == s['model']), None)
-                    if match and match['loaded_context']:
-                        p['context_tokens'] = min(p['context_tokens'], match['loaded_context'])
-                        p['output_tokens'] = min(p['output_tokens'], p['context_tokens'] // 4)
-                        p['source'] = match.get('source', 'model-metadata')
-                except Exception as exc:
-                    self.emit('log', 'Modellmetadaten nicht automatisch lesbar; manuelles Profil verwendet: ' + str(exc) + '\n')
-                p['model'] = s['model']
+                s = dict(self.settings)
+                source = self.active_source()
+                prepared = self.resolve_source(source)
+                model = prepared['model']
+                p = prepared['profile']
+                p['provider'] = routing.source_provider(source)
                 adapted, changed = adapt_plan(self.store.state['plan'], self.store.project, p, completed={k for k,v in self.store.state['tasks'].items() if v['status']=='VERIFIED'})
                 if changed:
                     self.store.set_plan(adapted, preserve=True)
@@ -493,12 +943,22 @@ class Session(AssistanceMixin):
                 edit = effective_edit(s['edit'], p, bool(s.get('small_model_mode')))
                 if edit != s['edit']:
                     self.emit('log', 'Kleines Modell: ganze Dateien werden bevorzugt (Edit-Format whole).\n')
-                if self.provider() == 'opencode':
+                multi_source = len(self.effective_sources(include_blocked=True)) > 1
+                if source == 'free' or multi_source:
                     base, key = self.bridge_base(), 'public'
-                    self.emit('log', 'OpenCode Free: Aider nutzt die lokale Brücke mit automatischem Modell-Fallback.\n')
+                    if source == 'free':
+                        self.emit('log', 'OpenCode Free: Aider nutzt die lokale Brücke. Bei erschöpfter gemeinsamer '
+                                          'Free-Quote wird nur auf Lokal/API ausgewichen, nicht auf ein anderes Free-Modell.\n')
+                    else:
+                        self.emit('log', 'Mehrquellen-Betrieb: Aider nutzt die lokale Brücke für den Ausweichbetrieb.\n')
+                elif source == 'api':
+                    base, key = s['api_base'], self.remote_key
+                    self.emit('log', 'Bezahlte API: Aider spricht die konfigurierte OpenAI-kompatible API direkt an.\n')
                 else:
                     base, key = s['base'], self.api_key
-                adapter = AiderAdapter(s['aider_python'], base, key, s['model'], edit, int(s['timeout']), p)
+                self.emit('log', f'Aktive Modellquelle: {routing.source_title(source)} · {model} · '
+                                  f'{p["context_tokens"]} Tokens.\n')
+                adapter = AiderAdapter(s['aider_python'], base, key, model, edit, int(s['timeout']), p)
                 self.phase = 'Aider-CLI prüfen …'
                 self.emit('log', adapter.probe() + '\n')
             if self.cancel.is_set(): self.phase = 'Vor dem Agentenstart gestoppt.'; return
@@ -565,6 +1025,10 @@ class Session(AssistanceMixin):
             self.phase = 'Stoppen angefordert.' if immediate else 'Pause nach dem Durchlauf angefordert.'
         else: raise ValueError('Kein laufender Agentenauftrag. Modellabfragen enden nach ihrem Timeout.')
         return self.snapshot()
+
+    def open_opencode_console(self):
+        """Open an interactive OpenCode terminal for this project on demand."""
+        return opencode.open_console(self.store.project)
 
     def open_logs(self):
         path = str(self.store.log_root)

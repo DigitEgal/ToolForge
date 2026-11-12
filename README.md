@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/version-V1.3-b8a3ff" alt="Version V1.3">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-160%20passed-2ea44f" alt="160 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-173%20passed-2ea44f" alt="160 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -46,10 +46,11 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 ## Neu in V1.3
 
 - **OpenCode Free ohne Zusatzkonto:** Der lokal installierte OpenCode-Dienst stellt kostenlose Coding-Modelle bereit. ToolForge verbindet sich über die lokale, passwortgeschützte OpenCode-API und nutzt sie für Vorabcheck, Planung, Hilfe und als OpenAI-kompatible Brücke für Aider. Ein API-Schlüssel ist nicht nötig.
-- **Automatischer Modellwechsel:** Erschöpft ein kostenloses Modell sein Tageslimit, versucht ToolForge die konfigurierte Reihenfolge weiter und setzt den Auftrag mit dem nächsten freien Modell fort. Bereits erschöpfte Modelle werden bis zum gemeldeten Reset übersprungen. Reihenfolge und erlaubte Modelle sind unter **Einstellungen → Kostenlose Modelle & automatischer Wechsel** konfigurierbar; eine leere Liste nutzt alle verfügbaren freien Modelle.
-- **Mehr Zuverlässigkeit bei kleinen Modellen:** Kompaktere Prompts mit Abnahmekriterien und Prüf-Checkliste, ganze Dateien statt riskanter Diffs, Top-p-Steuerung sowie eine Syntaxprüfung vor dem nächsten Reparaturschritt. Die vorhandene Aufgabenaufteilung und frische Kontextfenster bleiben erhalten.
+- **Modellquellen-Presets statt Modellnamen-Tricks:** Sechs Vorauswahlen – Nur Lokal, Nur Free, Nur API, Free & Lokal, Lokal & API, Free & API – kombinieren mit MAX Quality, Preis/Leistung oder Kostensparend eine klare Quellen-Reihenfolge. Jede Quelle hat ein eigenes Modellfeld. Die aktive Quelle bleibt beim laufenden Auftrag zuerst.
+- **Gemeinsames Free-Kontingent respektiert:** Alle OpenCode-Free-Modelle teilen sich ein Tageslimit. Ein Modellwechsel ist kein zusätzliches Kontingent. Bei Erschöpfung weicht ToolForge nur auf Lokal oder eine bezahlte API aus, wenn die Vorauswahl diese Quelle erlaubt; Nur Free hält mit einem erklärten Hinweis an. OpenCode-Status und eine separate Konsole werden nur auf Klick geöffnet.
+- **Mehr Zuverlässigkeit bei kleinen Modellen:** Kleine Modelle unter etwa 16 GB erhalten eine kompaktere Projektübersicht, ganze Dateien statt riskanter Diffs, strengere Formatprüfung und Syntaxfehler mit konkreten Zeilenausschnitten. Aufgabenaufteilung und frische Kontextfenster bleiben erhalten.
 - **Pilot-Schaltfläche repariert:** „Pilot öffnen“ startet jetzt tatsächlich das mitgelieferte Desktop-Fenster über die lokale Python-Umgebung; Fehlstarts werden mit Protokollpfad gemeldet. „Cockpit öffnen“ bleibt als separater Weg in die Browser-Workbench erhalten.
-- **Vorabcheck wiederholbar:** Nach Fehlern oder Planänderungen lässt sich der Vorabcheck mit den gespeicherten Kandidaten und dem Auswertungsmodell direkt erneut starten. Ein veralteter Bericht wird sichtbar markiert.
+- **Vorabcheck wiederholbar:** Nach Fehlern oder Planänderungen lässt sich der Vorabcheck mit den gespeicherten Kandidaten und dem Auswertungsmodell direkt erneut starten. Der letzte Bericht bleibt sichtbar, markiert veraltete Aufgabe bzw. Quellen-Vorauswahl und zeigt übersprungene Kandidaten sowie gemessene Ausweichquellen.
 - **Durchgängig V1.3:** API und FastAPI-Metadaten melden `1.3.0`, die Workbench Stage `13`; Frontend-Paket, Installer, Startbanner, Setup-Ausgabe, Hilfe und Dokumentation nennen V1.3 beziehungsweise dreizehn Etappen.
 
 ## Funktionsbasis V1.2
@@ -91,7 +92,7 @@ Die vollständige Zuordnung steht in [ABNAHME.md](ABNAHME.md). Testumfang und Pr
 2. `Setup_ToolForge.cmd` ausführen. Das Setup legt `.venv` für die Workbench und `.aider-venv` für Aider an und prüft Aider tatsächlich auf Version und benötigte Optionen. Ist npm vorhanden, installiert es zusätzlich optional `@opencode/cli` und startet den lokalen OpenCode-Dienst; ohne npm bleibt OpenCode einfach deaktiviert.
 3. `Start_ToolForge.cmd` öffnen. Die UI startet unter `http://127.0.0.1:8000`; unter Chrome/Edge öffnet sich ein eigenes App-Fenster.
 4. Beim ersten Start führt ein Willkommensdialog in das UI-Tutorial ein.
-5. Unter **Einstellungen → Modellquelle** LM Studio wählen und ein Modell laden – oder **OpenCode Free** wählen und die kostenlose Modellliste prüfen.
+5. Unter **Einstellungen → Modellquellen** eine Vorauswahl treffen, zum Beispiel **Free & Lokal**, die gewünschte Reihenfolge wählen und pro Quelle ein Modell laden. Für Nur API Basisadresse und Sitzungsschlüssel eintragen.
 
 ```text
 Setup_ToolForge.cmd        einmalig einrichten
@@ -107,9 +108,9 @@ Node.js ist für die normale Nutzung nicht erforderlich – das gebaute Frontend
 OpenCode ist ein separat installierter Coding-Agent mit lokalem Hintergrunddienst. ToolForge nutzt dessen lokale API, um kostenlose Modelle wie `deepseek-v4.1-flash-free`, `glm-5.3-flash-free` oder `minimax-m3.1-flash-free` für Vorabcheck, Planung, Hilfe und Aider zu verwenden. Es wird kein OpenCode-Konto und kein API-Schlüssel in ToolForge gespeichert.
 
 1. `Setup_ToolForge.cmd` ausführen, falls npm vorhanden ist. Alternativ manuell `npm install -g @opencode/cli` und `opencode service start`.
-2. Unter **Einstellungen → Modellquelle → OpenCode Free** den Status prüfen oder den Dienst starten.
-3. Ein Modell auswählen. Unter **Kostenlose Modelle & automatischer Wechsel** kann die Reihenfolge der erlaubten Modelle festgelegt werden; leer bedeutet alle verfügbaren freien Modelle.
-4. Bei erschöpftem Tageslimit wechselt ToolForge automatisch zum nächsten Modell und setzt den laufenden Auftrag fort. Ist die gemeinsame Free-Quote vollständig erschöpft, meldet ToolForge den Reset-Zeitpunkt; lokale Modelle bleiben unabhängig davon nutzbar.
+2. Unter **Einstellungen → Modellquellen → OpenCode Free** den Status prüfen, den Dienst starten oder die Konsole öffnen. Diese Aktionen laufen nur auf Klick.
+3. Ein Free-Modell auswählen und die Quellen-Vorauswahl speichern. Optional lässt sich eine bevorzugte Free-Modellreihenfolge für temporäre Modellfehler hinterlegen; sie ist kein Kontingent-Reset.
+4. Alle Free-Modelle teilen sich ein Tageslimit. Bei Erschöpfung versucht ToolForge nur dann Lokal oder eine bezahlte API, wenn die gewählte Vorauswahl diese Quelle erlaubt. Bei Nur Free wird der Lauf mit einem Hinweis angehalten; lokale Modelle bleiben unabhängig nutzbar.
 
 Die kostenlosen Modelle laufen über den OpenCode-Inferenzdienst. Prompts und die zur Aufgabe gehörenden Dateiauszüge werden dafür an diesen Dienst gesendet. Für vollständig lokale Verarbeitung LM Studio verwenden.
 

@@ -5,12 +5,13 @@ ToolForge Pilot V1.3
 3. Start_ToolForge.cmd öffnet die Webworkbench im Browser.
 4. Beim ersten Start das UI-Tutorial durchgehen.
 5. Projekt öffnen und Arbeitsordner außerhalb des Programmordners verbinden.
-6. LM Studio starten; API/Modelle unter Einstellungen prüfen.
-7. Aufgabenplan -> Ziel -> Modell-Vorabcheck -> Empfehlung übernehmen -> Plan -> Start.
-8. Alternativ den Ein-Klick-Ablauf „Automatisch: Vorabcheck → Empfehlung → Plan → Start“ verwenden.
-9. Bestehende Tools über Entwicklungsbereich -> Verbesserungen erweitern.
-10. Unter Analyse & Betrieb Index, Aufgaben-Graph, Messreihe, Anwendungsabnahme, Recherche, Export/Import, Logrotation und Sandbox nutzen.
-11. Vor größeren Planänderungen die Diff-Vorschau prüfen; Änderungen an bereits geprüften Teilen ausdrücklich bestätigen.
+6. Unter Einstellungen -> Modellquellen eine Vorauswahl treffen (z. B. Free & Lokal), Reihenfolge wählen und pro Quelle ein Modell laden. OpenCode-Status oder Konsole nur bei Bedarf anklicken.
+7. Free-Modelle teilen sich ein Tageslimit; ein anderer Free-Modellname ist kein zusätzliches Kontingent. Bei Erschöpfung nur Lokal/API verwenden, sofern die Vorauswahl sie erlaubt.
+8. Aufgabenplan -> Ziel -> Modell-Vorabcheck -> Empfehlung übernehmen -> Plan -> Start.
+9. Alternativ den Ein-Klick-Ablauf „Automatisch: Vorabcheck → Empfehlung → Plan → Start“ verwenden. Nach Fehlern bleibt „Vorabcheck erneut ausführen“ sichtbar.
+10. Bestehende Tools über Entwicklungsbereich -> Verbesserungen erweitern.
+11. Unter Analyse & Betrieb Index, Aufgaben-Graph, Messreihe, Anwendungsabnahme, Recherche, Export/Import, Logrotation und Sandbox nutzen.
+12. Vor größeren Planänderungen die Diff-Vorschau prüfen; Änderungen an bereits geprüften Teilen ausdrücklich bestätigen.
 
 Projektgruppen und Kachel-/Listenansicht ordnen größere Projektbestände.
 

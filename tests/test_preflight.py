@@ -109,7 +109,9 @@ def test_bad_samples_never_recommended():
 def test_session_rejects_stale_settings(tmp_path):
     from backend.pilot_service import Session
     session=Session(tmp_path)
-    session.preflight={'status':'ready','accepted':True,'goal_signature':signature('goal'),'base':session.settings['base'], 'accepted_settings':{'model':'tested','context_tokens':20000}}
+    session.preflight={'status':'ready','accepted':True,'goal_signature':signature('goal'),'base':session.provider_signature(),
+                       'accepted_settings':{'model':'tested','source':'local','context_tokens':20000,
+                                            'temperature':.2,'output_tokens':2048}}
     with pytest.raises(ValueError,match='Aufgabe geändert'):session.check_preflight('other')
     with pytest.raises(ValueError,match='Einstellungen'):session.check_preflight('goal')
     session.close()
@@ -122,6 +124,9 @@ def test_session_full_flow_and_changed_model(tmp_path):
     studio=FakeStudio()
     studio.instances=lambda:[{'id':'a','config':{'context_length':20000}}]
     session.studio=lambda **_:studio
+    session.local_studio=lambda *_,**__:studio
+    session.models=lambda source=None:[{'id':x,'type':'llm','loaded_context':20000,'max_context':32768,
+                                        'source':'local','small_model':False} for x in ['a','b','c','judge']]
     def wait():
         session.worker.join(timeout=5)
         assert not session.busy
@@ -146,6 +151,7 @@ def test_session_can_rerun_preflight_from_stored_candidates(tmp_path):
     session=Session(tmp_path)
     studio=FakeStudio()
     session.studio=lambda **_:studio
+    session.local_studio=lambda *_,**__:studio
     def wait():
         session.worker.join(timeout=5)
         assert not session.busy

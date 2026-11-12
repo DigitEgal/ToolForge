@@ -101,7 +101,7 @@ def test_additive_extension_preserves_verified_work(session):
     verify_all(session.store)
     new=plan();new['tasks']=new['tasks'][1:2]
     new['tasks'][0]['id']='new';new['tasks'][0]['files']=['extra.txt']
-    with patch('backend.assistance.chat_plan',return_value=new):
+    with patch('backend.pilot_service.chat_plan',return_value=new):
         session.queue_improvement('Add an export');session.worker.join(5)
     assert not session.error
     assert len(session.store.state['plan']['tasks'])==4
@@ -112,7 +112,7 @@ def test_extension_can_queue_while_busy_and_bad_plan_preserves_old(session):
     old=copy.deepcopy(session.store.state['plan']);session.running=True
     session.queue_improvement('Add feature')
     assert session.assistance['pending'][0]['status']=='queued'
-    with patch('backend.assistance.chat_plan',side_effect=ValueError('invalid JSON')):session.apply_pending_improvements()
+    with patch('backend.pilot_service.chat_plan',side_effect=ValueError('invalid JSON')):session.apply_pending_improvements()
     assert session.store.state['plan']==old
     assert session.assistance['pending'][0]['status']=='error'
     session.running=False

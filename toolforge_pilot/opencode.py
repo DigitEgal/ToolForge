@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -30,13 +31,17 @@ FAMILY_ORDER = (
 
 
 class OpenCodeError(RuntimeError):
-    def __init__(self, message, status=None, reason='', retry_after_ms=None, model='', tried=None):
+    def __init__(self, message, status=None, reason='', retry_after_ms=None, model='', tried=None,
+                 shared_quota=False):
         super().__init__(message)
         self.status = status
         self.reason = reason
         self.retry_after_ms = retry_after_ms
         self.model = model
         self.tried = list(tried or [])
+        # All free model names share one daily OpenCode quota. Callers must not
+        # interpret a switch to another *-free model as a quota reset.
+        self.shared_quota = bool(shared_quota or reason in ('rate_limit', 'rate_limited'))
 
 
 class OpenCodeUnavailable(OpenCodeError):
@@ -154,18 +159,21 @@ def _error_from_body(body, status, model):
     message = data.get('message') if isinstance(data, dict) else ''
     reason = str(data.get('reason') or '') if isinstance(data, dict) else ''
     retry = data.get('retryAfterMs') if isinstance(data, dict) else None
+    shared = reason in ('rate_limit', 'rate_limited')
     if status == 401:
         hint = 'OpenCode lehnt den lokalen Zugriff ab. Dienst neu starten.'
-    elif status == 429 or reason in ('rate_limit', 'rate_limited'):
-        hint = ('Tageslimit der kostenlosen Modelle erschöpft. Alle freien Modelle teilen diese Quote. '
-                'Bei aktiviertem Fallback versucht ToolForge die übrigen Modelle; sonst später erneut versuchen.')
+    elif shared:
+        hint = ('Tageslimit der kostenlosen Modelle erschöpft. Alle freien Modelle teilen diese Quote; '
+                'ein Wechsel auf ein anderes Free-Modell hilft nicht. Bitte auf Lokal bzw. eine bezahlte '
+                'API ausweichen oder den Reset abwarten.')
     elif status == 404:
         hint = 'Modell ist im OpenCode-Katalog nicht mehr vorhanden.'
     else:
         hint = 'OpenCode-Anfrage fehlgeschlagen.'
     detail = str(message or body or '').strip()[:800]
     return OpenCodeError(f'{hint} {detail}'.strip(), status=status, reason=reason,
-                         retry_after_ms=retry if type(retry) is int else None, model=model)
+                         retry_after_ms=retry if type(retry) is int else None, model=model,
+                         shared_quota=shared)
 
 
 class Client:
@@ -294,7 +302,14 @@ class Client:
                 exc.model = exc.model or name
                 failures.append({'model': name, 'status': exc.status, 'reason': exc.reason,
                                  'retry_after_ms': exc.retry_after_ms, 'error': str(exc)})
-                retryable = exc.status in (404, 429, 503) or exc.reason in ('rate_limit', 'rate_limited')
+                if exc.shared_quota:
+                    # A different -free name uses the same quota. Continuing would
+                    # waste time and produce misleading "model switch" messages.
+                    raise OpenCodeError(str(exc), status=429, reason='rate_limit',
+                                        retry_after_ms=exc.retry_after_ms, model=name,
+                                        tried=[row['model'] for row in failures],
+                                        shared_quota=True) from exc
+                retryable = exc.status in (404, 429, 503)
                 if not retryable:
                     raise OpenCodeError(str(exc), status=exc.status, reason=exc.reason,
                                         retry_after_ms=exc.retry_after_ms, model=name,
@@ -319,6 +334,39 @@ def client(url=None, password=None, timeout=900):
 
 def client_from_service(*args, **kwargs):
     return client(*args, **kwargs)
+
+
+def open_console(directory=None):
+    """Open the interactive OpenCode terminal for inspecting sessions.
+
+    The terminal is only started on explicit user request. It does not slow
+    down normal ToolForge requests because no service call or model request is
+    made here.
+    """
+    executable = shutil.which('opencode')
+    if not executable:
+        raise OpenCodeUnavailable('OpenCode ist nicht installiert. Setup_ToolForge.cmd installiert es optional über npm.')
+    workdir = Path(directory).expanduser() if directory else Path.home()
+    if not workdir.is_dir():
+        workdir = Path.home()
+    try:
+        if os.name == 'nt':
+            comspec = os.environ.get('COMSPEC', 'cmd.exe')
+            # `start` creates a visible console even when ToolForge itself runs
+            # without a console window. /k keeps the window open for sessions.
+            subprocess.Popen([comspec, '/d', '/c', 'start', 'ToolForge OpenCode',
+                              comspec, '/k', executable], cwd=str(workdir), close_fds=True)
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['open', '-a', 'Terminal', executable], cwd=str(workdir))
+        else:
+            terminal = shutil.which('x-terminal-emulator') or shutil.which('gnome-terminal')
+            if terminal:
+                subprocess.Popen([terminal, '-e', executable], cwd=str(workdir))
+            else:
+                subprocess.Popen([executable], cwd=str(workdir))
+    except OSError as exc:
+        raise OpenCodeUnavailable('OpenCode-Konsole konnte nicht geöffnet werden: ' + str(exc)) from exc
+    return {'started': True, 'command': executable, 'directory': str(workdir)}
 
 
 class OpenCodeStudio:
@@ -399,7 +447,7 @@ def flatten_messages(messages):
 
 def chat_plan(client, goal, p, audit=None, order=None, fallback=True, on_switch=None, on_model=None):
     """Plan with free models, retrying format failures and quota fallbacks."""
-    from .profiles import ContextBudgetError, estimate, input_budget, parse_plan_response, plan_system
+    from .profiles import ContextBudgetError, estimate, input_budget, parse_plan_response, plan_system, plan_quality_issues
     system = plan_system(p, goal)
     if estimate(system + goal) > input_budget(p):
         raise ContextBudgetError('Die Projektbeschreibung ist für diesen Kontext zu lang. Bitte kürzen oder Kontext erhöhen.')
@@ -418,6 +466,9 @@ def chat_plan(client, goal, p, audit=None, order=None, fallback=True, on_switch=
                                      on_switch=on_switch)
             raw = result['text']
             plan = parse_plan_response(raw)
+            issues = plan_quality_issues(plan, p)
+            if issues:
+                raise ValueError('Plan entspricht nicht der Abnahmegrundlage: ' + ' '.join(issues[:4]))
             if on_model:
                 on_model(result['model'])
             if audit:

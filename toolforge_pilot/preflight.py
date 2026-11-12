@@ -158,8 +158,23 @@ def evaluate(studio, goal, candidates, judge, context, kind, two_temperatures, e
     if type(context) != int or not 4096 <= context <= 200000:
         raise ValueError('Testkontext: 4.096 bis 200.000 Tokens.')
     inventory = {r['key']: r for r in studio.inventory() if r.get('type') == 'llm'}
-    for key in candidates + [judge]:
-        if key not in inventory: raise ValueError('Modell nicht unter diesem Schlüssel installiert: ' + key)
+    def blocked(key):
+        checker = getattr(studio, 'is_blocked', None)
+        return bool(checker and checker(key))
+    unknown = [key for key in candidates if key not in inventory and not blocked(key)]
+    if unknown:
+        raise ValueError('Modell nicht unter diesem Schlüssel installiert: ' + ', '.join(unknown))
+    skipped = [key for key in candidates if key not in inventory and blocked(key)]
+    candidates = [key for key in candidates if key in inventory]
+    if not candidates:
+        detail = getattr(studio, 'blocked_message', lambda: '')()
+        raise ValueError(('Alle Kandidaten sind vorübergehend nicht verfügbar. ' + detail).strip())
+    if judge not in inventory:
+        if blocked(judge):
+            detail = getattr(studio, 'blocked_message', lambda: '')()
+            raise ValueError(('Das Auswertungsmodell ist vorübergehend nicht verfügbar. ' + detail).strip())
+        raise ValueError('Modell nicht unter diesem Schlüssel installiert: ' + judge)
+    for key in candidates:
         maximum = inventory[key].get('max_context_length')
         if maximum and context > maximum: raise ValueError(f'{key}: Kontext überschreitet Modelllimit {maximum}.')
     focus = {'coding':'Liefere einen kleinen Codeausschnitt und konkrete Tests.',
@@ -171,10 +186,16 @@ def evaluate(studio, goal, candidates, judge, context, kind, two_temperatures, e
     if estimate(prompt) + 2048 > context: raise ValueError('Arbeitsprobe zu groß für den Testkontext. Kontext erhöhen oder repräsentativen Ausschnitt verwenden.')
     report = {'status':'running', 'goal':goal, 'goal_signature':signature(goal), 'kind':kind,
               'context_tokens':context, 'judge':judge, 'candidates':list(candidates), 'samples':[], 'recommendation':None,
+              'skipped_sources':skipped,
               'note':'Stichprobe, keine Garantie des besten Modells; kein Code ausgeführt; Kontextgröße ist ein geprüftes Budget, kein gemessenes Optimum.'}
     save(report)
     try:
         for model in candidates:
+            if blocked(model):
+                skipped.append(model)
+                report['skipped_sources'] = skipped
+                emit('Übersprungen, Quelle vorübergehend nicht verfügbar: ' + model)
+                continue
             emit('Entladen und laden: ' + model)
             ident = studio.switch(model, context)
             actual = getattr(studio, 'actual_context', None)
@@ -190,9 +211,15 @@ def evaluate(studio, goal, candidates, judge, context, kind, two_temperatures, e
                 except Exception as exc:
                     studio.check()
                     sample.update(valid=False, error=str(exc))
+                    if blocked(model) and model not in skipped:
+                        skipped.append(model)
+                        report['skipped_sources'] = skipped
                 report['samples'].append(sample); save(report)
         valid = [s for s in report['samples'] if s.get('valid')]
-        if not valid: raise ValueError('Keine vollständige, formatgültige Arbeitsprobe. Keine Empfehlung erstellt.')
+        if not valid:
+            detail = getattr(studio, 'blocked_message', lambda: '')()
+            hint = (' Vorübergehend nicht verfügbar: ' + detail + '.') if detail else ''
+            raise ValueError('Keine vollständige, formatgültige Arbeitsprobe. Keine Empfehlung erstellt.' + hint)
         # Blind model/temperature mapping; randomized order reduces position bias.
         blind = [{'id':s['id'], 'response':s.get('response',''), 'seconds':s.get('seconds')} for s in valid]
         random.Random(42).shuffle(blind)
@@ -219,6 +246,23 @@ def evaluate(studio, goal, candidates, judge, context, kind, two_temperatures, e
         report['context_tokens'] = winner_context
         report['recommendation'] = {'model':winner['model'], 'temperature':winner['temperature'],
             'context_tokens':winner_context, 'output_tokens':min(2048, winner_context//4), 'reason':verdict['reason']}
+        # Keep every measured alternative so a later quota fallback can adopt a
+        # source that was already validated for the same goal.
+        alternatives = []
+        by_model = {}
+        for sample in valid:
+            score = scores.get(sample['id'])
+            if score is None: continue
+            if sample['model'] not in by_model or score > by_model[sample['model']]['score']:
+                source, _ = (studio.source_for(sample['model']) if hasattr(studio, 'source_for') else (None, sample['model']))
+                by_model[sample['model']] = {'model':sample['model'], 'source':source,
+                    'temperature':sample['temperature'], 'context_tokens':sample.get('context_tokens') or context,
+                    'score':score, 'reason':verdict['reason']}
+        alternatives = sorted(by_model.values(), key=lambda row: -row['score'])
+        report['alternatives'] = alternatives
+        if report['recommendation']['model'] in by_model:
+            report['recommendation']['source'] = by_model[report['recommendation']['model']]['source']
+            report['recommendation']['score'] = by_model[report['recommendation']['model']]['score']
         report['status'] = 'ready'
         return report
     except Exception as exc:

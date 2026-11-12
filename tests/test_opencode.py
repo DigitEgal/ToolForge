@@ -34,25 +34,24 @@ def test_chain_skips_exhausted_models_until_reset():
         client.chain('deepseek-v4.1-flash-free', skip={row['id'] for row in ROWS})
 
 
-def test_generate_switches_after_rate_limit_and_reports_tried():
+def test_generate_stops_on_shared_quota_without_free_model_switch():
     client = make_client()
     calls = []
     switched = []
 
     def generate_one(prompt, model, timeout=None):
         calls.append(model)
-        if model == 'deepseek-v4.1-flash-free':
-            raise opencode.OpenCodeError('limit', status=429, reason='rate_limit', retry_after_ms=45000)
-        return {'text': 'ok', 'model': model}
+        raise opencode.OpenCodeError('limit', status=429, reason='rate_limit', retry_after_ms=45000)
 
     client.generate_one = generate_one
-    result = client.generate('Auftrag', model='deepseek-v4.1-flash-free',
-                             order=['glm-5.3-flash-free'],
-                             on_switch=lambda old, new, exc: switched.append((old, new)))
-    assert calls == ['deepseek-v4.1-flash-free', 'glm-5.3-flash-free']
-    assert result['model'] == 'glm-5.3-flash-free'
-    assert result['tried'] == ['deepseek-v4.1-flash-free']
-    assert switched[0][1] == 'glm-5.3-flash-free'
+    with pytest.raises(opencode.OpenCodeError) as exc:
+        client.generate('Auftrag', model='deepseek-v4.1-flash-free',
+                        order=['glm-5.3-flash-free'],
+                        on_switch=lambda old, new, error: switched.append((old, new)))
+    assert calls == ['deepseek-v4.1-flash-free']
+    assert switched == []
+    assert exc.value.tried == ['deepseek-v4.1-flash-free']
+    assert exc.value.shared_quota is True
 
 
 def test_generate_does_not_hide_non_retryable_errors():
@@ -79,7 +78,8 @@ def test_generate_reports_shared_quota_with_retry_after():
     assert exc.value.status == 429
     assert exc.value.reason == 'rate_limit'
     assert exc.value.retry_after_ms == 45000
-    assert len(exc.value.tried) == len(ROWS)
+    assert exc.value.tried == ['deepseek-v4.1-flash-free']
+    assert exc.value.shared_quota is True
 
 
 def test_studio_switch_checks_context_and_preflight_chat_never_falls_back():
@@ -155,7 +155,9 @@ def test_service_info_rejects_non_local_urls(monkeypatch, tmp_path):
 def test_session_bridge_uses_project_id_and_openai_shape(tmp_path):
     from backend.pilot_service import Session
     session = Session(tmp_path, 'project-123')
-    session.settings['provider'] = 'opencode'
+    session.settings.update(source_mode='free', provider='opencode',
+                            free_model='deepseek-v4.1-flash-free',
+                            model='deepseek-v4.1-flash-free')
     client = make_client()
 
     def generate(prompt, **kwargs):

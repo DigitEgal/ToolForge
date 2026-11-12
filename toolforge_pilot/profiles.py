@@ -25,7 +25,8 @@ def profile(data=None):
     if not math.isfinite(temperature) or not 0 <= temperature <= 2: raise ValueError('Temperatur muss zwischen 0 und 2 liegen.')
     if not math.isfinite(top_p) or not 0 < top_p <= 1: raise ValueError('Top-p muss zwischen 0 und 1 liegen.')
     return {'context_tokens': context, 'output_tokens': output, 'temperature': temperature, 'top_p': top_p,
-            'source': str(data.get('source', 'manual')), 'model': str(data.get('model', ''))}
+            'source': str(data.get('source', 'manual')), 'model': str(data.get('model', '')),
+            'small_model': data.get('small_model') is True}
 
 
 def estimate(text):
@@ -46,7 +47,9 @@ def get_json(url, key, timeout=12):
 def discover_models(base, key):
     base = base.rstrip('/')
     visible = get_json(base + '/models', key)
-    entries = {x['id']: {'id': x['id'], 'loaded_context': None, 'max_context': None, 'source': 'manual', 'type': 'unknown'}
+    entries = {x['id']: {'id': x['id'], 'loaded_context': None, 'max_context': None, 'source': 'manual', 'type': 'unknown',
+                         'size_bytes': None, 'params_string': '', 'quantization': None,
+                         'selected_variant': '', 'small_model': False}
                for x in visible.get('data', []) if isinstance(x, dict) and isinstance(x.get('id'), str)}
     parsed = urlsplit(base); origin = f'{parsed.scheme}://{parsed.netloc}'
     # Native v1 describes loaded context; max_context_length alone is NOT the loaded size.
@@ -59,6 +62,15 @@ def discover_models(base, key):
             for alias in aliases:
                 if alias not in entries: continue
                 row = entries[alias]; row['type'] = item.get('type', 'unknown'); row['max_context'] = item.get('max_context_length')
+                quantization = item.get('quantization')
+                size = item.get('size_bytes')
+                row['size_bytes'] = size if type(size) is int else None
+                row['params_string'] = str(item.get('params_string') or '')
+                row['quantization'] = quantization.get('name') if isinstance(quantization, dict) else None
+                row['selected_variant'] = str(item.get('selected_variant') or '')
+                # Under 16 GiB is the documented small-model target. The value is
+                # also used when the user chose a larger context than 16k.
+                row['small_model'] = bool(type(size) is int and 0 < size < 16 * 1024 ** 3)
                 matched = [i for i in instances if i.get('id') == alias]
                 if not matched and len(instances) == 1: matched = instances
                 if matched:
@@ -171,9 +183,55 @@ def plan_system(p, goal):
 
 def effective_edit(edit, p, small_model_mode=False):
     """Whole-file edits are more reliable when a small model rewrites short files."""
-    if edit == 'auto' and small_model_mode and p.get('context_tokens', 0) < 16000:
+    if edit == 'auto' and small_model_mode and (p.get('small_model') or p.get('context_tokens', 0) < 16000):
         return 'whole'
     return edit
+
+
+def plan_quality_issues(plan, p=None):
+    """Return concrete reasons a plan is too vague for a small model.
+
+    This is deliberately conservative: it only rejects plans that contradict the
+    documented planning contract, not unusual but valid task structures. The
+    stricter file/task limits use the explicit small-model flag measured from
+    the local model size. A low context alone is handled later by
+    ``adapt_plan`` and must not reject an otherwise valid existing plan.
+    """
+    issues = []
+    if not isinstance(plan, dict) or not isinstance(plan.get('tasks'), list):
+        return ['Plan enthält keine Aufgabenliste.']
+    tasks = plan['tasks']
+    small = bool(p and p.get('small_model') is True)
+    if small and len(tasks) > 3:
+        issues.append('Für ein kleines Modell sind höchstens drei Aufgaben vorgesehen.')
+    for task in tasks:
+        ident = str(task.get('id') or '?')
+        instruction = str(task.get('instruction') or '').strip()
+        if len(instruction) < 24:
+            issues.append(f'{ident}: Auftrag ist zu kurz oder unkonkret.')
+        if small and len(task.get('files') or []) > 2:
+            issues.append(f'{ident}: höchstens zwei Dateien pro Aufgabe bei kleinen Modellen.')
+        for criterion in task.get('acceptance') or []:
+            text = str(criterion).strip()
+            if len(text) < 6 or text.lower() in ('todo', 'tbd') or '...' in text:
+                issues.append(f'{ident}: Abnahmekriterium ist unkonkret.')
+                break
+        checks = task.get('checks') or []
+        if not checks:
+            issues.append(f'{ident}: echte Prüfkommandos fehlen.')
+        else:
+            for check in checks:
+                argv = check.get('argv') if isinstance(check, dict) else None
+                if not isinstance(argv, list) or not argv or not isinstance(argv[0], str) or not argv[0].strip():
+                    issues.append(f'{ident}: Prüfkommando ist unvollständig.')
+                    break
+    return issues
+
+
+def _ensure_plan_quality(plan, p):
+    issues = plan_quality_issues(plan, p)
+    if issues:
+        raise ValueError('Plan entspricht nicht der Abnahmegrundlage: ' + ' '.join(issues[:4]))
 
 
 def chat_plan(base, key, model, goal, p, audit=None):
@@ -198,6 +256,7 @@ def chat_plan(base, key, model, goal, p, audit=None):
             raw = choice['message'].get('content') or ''
             if choice.get('finish_reason') == 'length': raise ValueError('JSON am Ausgabelimit abgeschnitten; kürzere Aufgaben nötig.')
             plan = parse_plan_response(raw)
+            _ensure_plan_quality(plan, p)
             if audit: audit(attempt, raw, '')
             return plan
         except (ValueError, KeyError, IndexError, TypeError) as exc:

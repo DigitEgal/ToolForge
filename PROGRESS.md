@@ -1,17 +1,17 @@
 # Projektstand V1.3
 
-ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, einen automatischen Modellwechsel bei Tageslimits, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **160 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
+ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, klar wählbare Modellquellen-Presets statt riskanter Free-Modellwechsel, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **173 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
 
 Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als dreizehnte Etappe eingeordnet.
 
 ## V1.3-Schwerpunkte
 
-- OpenCode Free als zweite Modellquelle: lokaler Dienst, keine zusätzlichen Zugangsdaten, Nutzung für Vorabcheck, Planung, Hilfe und Aider-Brücke.
-- Automatischer Wechsel zum nächsten freien Modell nach erschöpftem Tageslimit; Reihenfolge und erlaubte Modelle sind konfigurierbar.
-- Erschöpfte Modelle werden bis zum gemeldeten Reset übersprungen; laufende Chats werden mit dem nächsten Modell fortgesetzt.
-- Kleine Modelle: kompaktere Prompts mit Abnahmekriterien, Checkliste und echten Prüfungen, ganze Dateien statt riskanter Diffs, Top-p-Steuerung und Syntaxprüfung vor der Reparatur.
+- OpenCode Free als Modellquelle: lokaler Dienst, keine zusätzlichen Zugangsdaten, Nutzung für Vorabcheck, Planung, Hilfe und Aider-Brücke; Konsole und Status nur auf Klick.
+- Sechs Modellquellen-Presets (Nur Lokal, Nur Free, Nur API, Free & Lokal, Lokal & API, Free & API) mit den Reihenfolgen MAX Quality, Preis/Leistung und Kostensparend; pro Quelle ein eigenes Modellfeld.
+- Alle Free-Modelle teilen sich das Tageskontingent. Ein Modellname wechselt kein Kontingent; bei Erschöpfung wird nur auf erlaubte lokale oder bezahlte API-Quellen ausgewichen.
+- Kleine Modelle: kompaktere Projektübersicht, ganze Dateien statt riskanter Diffs, Top-p-Steuerung, strengere Formatprüfung und Syntaxfehler mit Zeilenausschnitten.
 - „Pilot öffnen“ startet das Desktop-Fenster tatsächlich; Fehlstarts nennen das Startprotokoll.
-- Vorabcheck lässt sich mit gespeicherten Kandidaten und Auswertungsmodell erneut ausführen; veraltete Berichte werden markiert.
+- Vorabcheck bleibt nach Fehlern sichtbar und lässt sich mit gespeicherten Kandidaten erneut ausführen; geänderte Aufgabe oder Quellen-Vorauswahl werden markiert, übersprungene Kandidaten und gemessene Ausweichquellen angezeigt.
 - API `1.3.0`, Workbench-Stage `13`, Frontend `1.3.0`, Installer `1.3`.
 
 ## Funktionsbasis aus V1.2

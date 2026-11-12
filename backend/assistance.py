@@ -7,7 +7,6 @@ from pathlib import Path
 from toolforge_pilot.core import APP_ROOT, atomic_json, fingerprint, plan_hash, validate_plan, contained
 from toolforge_pilot.profiles import chat_plan, profile, estimate, input_budget
 from toolforge_pilot.preflight import parse_json, suggest
-from toolforge_pilot import opencode
 
 CATEGORIES={'architecture':'Architektur','code':'Codequalität','features':'Funktionen','ui':'Darstellung und Bedienung','speed':'Geschwindigkeit','tests':'Tests und Zuverlässigkeit','security':'Sicherheit und Datenhaltung'}
 
@@ -132,21 +131,10 @@ class AssistanceMixin:
                 old=copy.deepcopy(self.store.state['plan'])
                 context=self.project_context()
                 goal='Erstelle ausschließlich NEUE Zusatzaufgaben für diese bestätigte Erweiterung: '+item['text']+'\nBestehendes Projekt (nicht neu implementieren):\n'+json.dumps(context,ensure_ascii=False)+'\nBereits erledigte Aufgaben nicht neu aufnehmen. Abhängigkeiten zwischen neuen Aufgaben korrekt setzen; bestehende Dateikonflikte werden zusätzlich vom Controller verknüpft.'
-                if not self.settings['model'] and self.provider()!='opencode':raise ValueError('Vor der Erweiterungsplanung ein Modell auswählen.')
-                p=profile(self.settings)
-                if self.provider()=='opencode':
-                    client=self.opencode_client()
-                    if not p['model']:p['model']=client.pick_default()
-                    def switched(old,new,error):
-                        if error.retry_after_ms:
-                            self.opencode_retry[old]=time.time()+error.retry_after_ms/1000
-                        self.emit('log','OpenCode-Tageslimit für '+old+'; nutze '+new+'.\n')
-                    new=opencode.chat_plan(client,goal,p,order=self.settings.get('opencode_order') or [],
-                                           fallback=bool(self.settings.get('opencode_fallback',True)),
-                                           on_switch=switched,
-                                           on_model=lambda name:setattr(self,'opencode_last_model',name))
-                else:
-                    new=chat_plan(self.settings['base'],self.api_key,self.settings['model'],goal,p)
+                # Use the same source preset and fallback order as normal
+                # planning. A shared free quota therefore falls back only to
+                # local/paid API sources that the user explicitly allowed.
+                new=self.plan_with_sources(goal)
                 if self.cancel.is_set():raise ValueError('Erweiterungsplanung gestoppt; Bestandsplan unverändert.')
                 mapping={t['id']:'ext_'+item['id'][:8]+'_'+str(i+1) for i,t in enumerate(new['tasks'])}
                 for t in new['tasks']:
