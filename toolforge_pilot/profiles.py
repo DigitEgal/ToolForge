@@ -19,10 +19,12 @@ def profile(data=None):
     context = int(data.get('context_tokens', 8192))
     output = int(data.get('output_tokens', min(2048, context // 4)))
     temperature = float(data.get('temperature', 0.2))
-    if not 2048 <= context <= 2000000: raise ValueError('Kontext muss zwischen 2.048 und 2.000.000 Tokens liegen.')
-    if not 256 <= output <= context // 2: raise ValueError('Ausgabelimit: mindestens 256 und höchstens die Hälfte des Kontexts.')
+    top_p = float(data.get('top_p', .95))
+    if 2048 > context or context > 2000000: raise ValueError('Kontext muss zwischen 2.048 und 2.000.000 Tokens liegen.')
+    if 256 > output or output > context // 2: raise ValueError('Ausgabelimit: mindestens 256 und höchstens die Hälfte des Kontexts.')
     if not math.isfinite(temperature) or not 0 <= temperature <= 2: raise ValueError('Temperatur muss zwischen 0 und 2 liegen.')
-    return {'context_tokens': context, 'output_tokens': output, 'temperature': temperature,
+    if not math.isfinite(top_p) or not 0 < top_p <= 1: raise ValueError('Top-p muss zwischen 0 und 1 liegen.')
+    return {'context_tokens': context, 'output_tokens': output, 'temperature': temperature, 'top_p': top_p,
             'source': str(data.get('source', 'manual')), 'model': str(data.get('model', ''))}
 
 
@@ -145,8 +147,8 @@ def save_plan_version(project, plan, model='unassigned'):
     return path
 
 
-def chat_plan(base, key, model, goal, p, audit=None):
-    from .core import validate_plan
+def plan_system(p, goal):
+    """Shared planning instructions for local and OpenCode free models."""
     schema = {'schema_version': 1, 'version': 1, 'goal': goal,
               'tasks': [{'id': 'step1', 'title': '…', 'instruction': '…', 'depends_on': [], 'files': ['main.py', 'tests/test_main.py'],
                          'acceptance': ['konkretes Verhalten'], 'weight': 1, 'estimate': [1, 3], 'max_repairs': 3,
@@ -156,7 +158,27 @@ def chat_plan(base, key, model, goal, p, audit=None):
               'keine Shellketten. Keine leeren Test-Suites. Keine erfundenen externen Prüfer. '
               'Python-Interpreter-Platzhalter {python}. Benötigte Pakete nur als requirements-Liste '
               '[{"manager":"pip|npm|choco","name":"Paketname","version":"optional"}] pro Aufgabe deklarieren. '
-              'Keine Installationskommandos in checks. Kontext des Modells: ' + str(p['context_tokens']) + '. Schema: ' + json.dumps(schema, ensure_ascii=False))
+              'Keine Installationskommandos in checks. Kontext des Modells: ' + str(p['context_tokens']) + '. '
+              'Definition of Done: Jede Aufgabe nennt konkretes Verhalten, mindestens ein echtes Prüfkommando und '
+              'eine kurze Checkliste ausführbarer Schritte. Plane zuerst Tests/Abnahmekriterien, dann die Implementierung; '
+              'keine Aufgabe darf dieselbe Datei gleichzeitig mit einer unabhängigen Aufgabe bearbeiten. '
+              'Schema: ' + json.dumps(schema, ensure_ascii=False))
+    if p['context_tokens'] < 16000:
+        system += (' Kleines Modell: Formuliere besonders kurze, voneinander unabhängige Schritte, '
+                   'je eine klar benannte Änderung und genau eine Datei pro Aufgabe. Vermeide lange Instruktionen.')
+    return system
+
+
+def effective_edit(edit, p, small_model_mode=False):
+    """Whole-file edits are more reliable when a small model rewrites short files."""
+    if edit == 'auto' and small_model_mode and p.get('context_tokens', 0) < 16000:
+        return 'whole'
+    return edit
+
+
+def chat_plan(base, key, model, goal, p, audit=None):
+    from .core import validate_plan
+    system = plan_system(p, goal)
     if estimate(system + goal) > input_budget(p): raise ContextBudgetError('Die Projektbeschreibung ist für diesen Kontext zu lang. Bitte kürzen oder Kontext erhöhen.')
     payload = {'model': model, 'messages': [{'role': 'system', 'content': system}, {'role': 'user', 'content': goal}],
                'temperature': p['temperature'], 'max_tokens': p['output_tokens'], 'stream': False}

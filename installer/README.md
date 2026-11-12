@@ -17,7 +17,7 @@ optional signiert den Installer.
 .\installer\build_installer.ps1
 ```
 
-Das Ergebnis liegt unter `dist\installer\ToolForge-Setup-1.2.exe`; daneben
+Das Ergebnis liegt unter `dist\installer\ToolForge-Setup-1.3.exe`; daneben
 entsteht `SHA256SUMS.txt`.
 
 ## Signieren

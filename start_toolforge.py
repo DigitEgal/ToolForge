@@ -85,7 +85,7 @@ def main():
             if is_toolforge(): open_ui(track);return
             time.sleep(.1)
     threading.Thread(target=open_when_ready, daemon=True).start()
-    print('ToolForge Pilot V1.2 | ' + URL + '\nBeenden über die UI oder Stop_ToolForge.cmd.')
+    print('ToolForge Pilot V1.3 | ' + URL + '\nBeenden über die UI oder Stop_ToolForge.cmd.')
     runtime=ROOT/'runtime';runtime.mkdir(exist_ok=True)
     instance=uuid.uuid4().hex
     info=runtime/'server.json'

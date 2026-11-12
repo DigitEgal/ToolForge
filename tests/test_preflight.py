@@ -121,7 +121,7 @@ def test_session_full_flow_and_changed_model(tmp_path):
     session=Session(tmp_path)
     studio=FakeStudio()
     studio.instances=lambda:[{'id':'a','config':{'context_length':20000}}]
-    session.studio=lambda:studio
+    session.studio=lambda **_:studio
     def wait():
         session.worker.join(timeout=5)
         assert not session.busy
@@ -138,4 +138,29 @@ def test_session_full_flow_and_changed_model(tmp_path):
     assert session.store.state['plan']==plan
     studio.instances=lambda:[{'id':'wrong','config':{'context_length':20000}}]
     with pytest.raises(ValueError,match='Geladenes Modell'):session.check_preflight()
+    session.close()
+
+
+def test_session_can_rerun_preflight_from_stored_candidates(tmp_path):
+    from backend.pilot_service import Session
+    session=Session(tmp_path)
+    studio=FakeStudio()
+    session.studio=lambda **_:studio
+    def wait():
+        session.worker.join(timeout=5)
+        assert not session.busy
+        assert not session.error,session.error
+    payload={'goal':'Erstelle ein Tool','candidates':['a','b'],'judge':'judge','context_tokens':20000}
+    session.run_preflight(payload);wait()
+    report=session.preflight
+    assert report['status']=='ready'
+    assert report['candidates']==['a','b'] and report['judge']=='judge'
+    history=session.store.log_root.parent/'preflight-history'
+    first=sorted(history.glob('*.json'))
+    assert len(first)==1
+    session.run_preflight({'goal':payload['goal'],'candidates':report['candidates'],'judge':report['judge'],
+                           'context_tokens':report['context_tokens'],'kind':report['kind']})
+    wait()
+    assert len(list(history.glob('*.json')))==2
+    assert session.preflight['status']=='ready'
     session.close()

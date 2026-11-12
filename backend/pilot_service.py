@@ -3,20 +3,23 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from toolforge_pilot.core import APP_ROOT, Store, Engine, AiderAdapter, atomic_json, data_root, fingerprint, project_path, progress, validate_plan
-from toolforge_pilot.profiles import profile, discover_models, adapt_plan, chat_plan
-from toolforge_pilot import project_index, benchmarks, planning, task_graph, scenarios, environments, operations
+from toolforge_pilot.profiles import profile, discover_models, adapt_plan, chat_plan, effective_edit
+from toolforge_pilot import opencode, project_index, benchmarks, planning, task_graph, scenarios, environments, operations
 from toolforge_pilot.simulation import DemoAdapter
 from toolforge_pilot.preflight import Studio, MODEL_LOCK, evaluate, suggest, signature, context_compatible
 from backend.events import EventHub
 
 AIDER_PYTHON = APP_ROOT / '.aider-venv' / ('Scripts/python.exe' if os.name=='nt' else 'bin/python')
 DEFAULTS = {'aider_python': str(AIDER_PYTHON) if AIDER_PYTHON.is_file() else sys.executable, 'python': sys.executable, 'base': 'http://localhost:1234/v1', 'model': '', 'context_tokens': 20000,
-            'output_tokens': 2048, 'temperature': 0.2, 'edit': 'auto', 'budget': 20, 'timeout': 900,
+            'output_tokens': 2048, 'temperature': 0.2, 'top_p': 0.95, 'edit': 'auto', 'budget': 20, 'timeout': 900,
+            'provider': 'lmstudio', 'opencode_fallback': True, 'opencode_order': [], 'small_model_mode': True,
             'sandbox':False,'sandbox_network':'','sandbox_memory':'4g','sandbox_cpus':2,'sandbox_pids':256,'sandbox_ports':'',
             'web_search':False, 'research_domains':'', 'debug_logging':False, 'allow_pip': False, 'allow_choco': False, 'allow_npm': False, 'simulation': False}
 
@@ -24,8 +27,9 @@ DEFAULTS = {'aider_python': str(AIDER_PYTHON) if AIDER_PYTHON.is_file() else sys
 from backend.assistance import AssistanceMixin
 
 class Session(AssistanceMixin):
-    def __init__(self, folder):
+    def __init__(self, folder, project_id=None):
         self.store = Store(project_path(folder))
+        self.project_id = project_id or ''
         self.guard = threading.Lock()
         self.worker = None
         self.running = False
@@ -49,6 +53,10 @@ class Session(AssistanceMixin):
         if self.settings_path.is_file():
             settings = json.loads(self.settings_path.read_text(encoding='utf-8'))
             self.settings.update({k: v for k, v in settings.items() if k in DEFAULTS})
+        if not isinstance(self.settings.get('opencode_order'), list):
+            self.settings['opencode_order'] = []
+        self.opencode_last_model = ''
+        self.opencode_retry = {}
         self.api_key = 'lm-studio'
         self.preflight_path = self.store.log_root.parent / 'preflight.json'
         self.preflight = None
@@ -108,20 +116,54 @@ class Session(AssistanceMixin):
                 'scenarios': self.acceptance or scenarios.last(self.store.project),
                 'benchmark': self.benchmark,
                 'research': self.research_result,
+                'opencode': {'last_model': self.opencode_last_model,
+                             'blocked_models': sorted(name for name, until in self.opencode_retry.items() if until > time.time())},
                 'operations': operations.operations_status(self.store.project),
                 'environment': {'lock_file': str(APP_ROOT / 'runtime' / 'environment-lock.json'),
                                 'presets': environments.list_presets()}}
+
+    def provider(self):
+        return self.settings.get('provider', 'lmstudio')
+
+    def provider_signature(self):
+        return 'opencode-free' if self.provider() == 'opencode' else self.settings['base']
+
+    def profile_key(self, candidate=None):
+        candidate = candidate or self.settings
+        if candidate.get('provider') == 'opencode':
+            return 'opencode|' + str(candidate.get('model', ''))
+        return candidate['base'].rstrip('/') + '|' + str(candidate.get('model', ''))
+
+    def opencode_client(self):
+        try:
+            return opencode.client(timeout=int(self.settings.get('timeout', 900)))
+        except opencode.OpenCodeUnavailable as exc:
+            raise ValueError(str(exc)) from exc
 
     def configure(self, settings):
         if self.busy: raise ValueError('Während eines Laufs erst pausieren oder stoppen.')
         clean = {k: v for k, v in settings.items() if k in DEFAULTS}
         candidate = {**self.settings, **clean}
+        if candidate.get('provider') not in ('lmstudio', 'opencode'):
+            raise ValueError('Modellquelle: LM Studio oder OpenCode Free.')
+        order = candidate.get('opencode_order') or []
+        if not isinstance(order, list) or len(order) > 40 or any(
+                not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9._:/@-]{1,160}', name) for name in order):
+            raise ValueError('Fallback-Reihenfolge: höchstens 40 gültige Modell-IDs.')
+        candidate['opencode_order'] = list(dict.fromkeys(name.strip() for name in order if name.strip()))
         p = profile(candidate)
         candidate.update(context_tokens=p['context_tokens'], output_tokens=p['output_tokens'], temperature=p['temperature'])
+        try:
+            top_p = float(candidate.get('top_p', .95))
+        except (TypeError, ValueError):
+            raise ValueError('Top-p muss eine Zahl zwischen 0 und 1 sein.')
+        if not 0 < top_p <= 1: raise ValueError('Top-p muss zwischen 0 und 1 liegen.')
+        candidate['top_p'] = top_p
         if candidate['edit'] not in ('auto', 'whole', 'diff'): raise ValueError('Ungültiges Edit-Format.')
         if not 1 <= int(candidate['budget']) <= 500: raise ValueError('Budget: 1 bis 500.')
         if not 30 <= int(candidate['timeout']) <= 86400: raise ValueError('Timeout: 30 bis 86400 Sekunden.')
-        for key in ('allow_pip', 'allow_choco', 'allow_npm', 'simulation','web_search','debug_logging','sandbox'):
+        for key in ('allow_pip', 'allow_choco', 'allow_npm', 'simulation','web_search','debug_logging','sandbox',
+                    'opencode_fallback','small_model_mode'):
             if type(candidate[key]) != bool: raise ValueError('Freigaben müssen boolesche Werte sein.')
         domains = candidate.get('research_domains', '')
         if not isinstance(domains, str) or len(domains) > 500:
@@ -140,17 +182,67 @@ class Session(AssistanceMixin):
         try: profiles = json.loads(profiles_file.read_text(encoding='utf-8'))
         except FileNotFoundError: profiles = {}
         if candidate['model']:
-            profiles[candidate['base'].rstrip('/') + '|' + candidate['model']] = p
+            profiles[self.profile_key(candidate)] = p
             atomic_json(profiles_file, profiles)
         return self.snapshot()
 
     def models(self):
-        values = discover_models(self.settings['base'], self.api_key)
         try: saved = json.loads((data_root() / 'model-profiles.json').read_text(encoding='utf-8'))
         except FileNotFoundError: saved = {}
+        if self.provider() == 'opencode':
+            rows = self.opencode_client().models(refresh=True)
+            values = [{'id': row['id'], 'loaded_context': row['context'], 'max_context': row['context'],
+                       'source': 'opencode-free', 'type': 'chat', 'name': row['name'],
+                       'family': row['family'], 'variants': row['variants'], 'free': True} for row in rows]
+            key = self.profile_key()
+            for item in values:
+                item['saved_profile'] = saved.get('opencode|' + item['id'])
+                if not item['saved_profile'] and key.endswith('|' + item['id']):
+                    item['saved_profile'] = saved.get(key)
+            return values
+        values = discover_models(self.settings['base'], self.api_key)
         for item in values:
             item['saved_profile'] = saved.get(self.settings['base'].rstrip('/') + '|' + item['id'])
         return values
+
+    def opencode_status(self, data=None):
+        start = bool((data or {}).get('start'))
+        try:
+            client = self.opencode_client()
+        except ValueError as exc:
+            return {'available': False, 'models': [], 'order': [], 'error': str(exc)}
+        return client.status(start=start)
+
+    def bridge_base(self):
+        base = (os.environ.get('TOOLFORGE_BRIDGE_BASE') or 'http://127.0.0.1:8000').rstrip('/')
+        ident = urllib.parse.quote(self.project_id or 'unknown', safe='')
+        return base + '/api/projects/' + ident + '/opencode/v1'
+
+    def bridge_models(self):
+        if self.provider() != 'opencode':
+            raise ValueError('OpenCode-Brücke ist nur in der Modellquelle OpenCode Free aktiv.')
+        rows = self.opencode_client().models(refresh=True)
+        return {'object': 'list', 'data': [{'id': row['id'], 'object': 'model',
+                                            'created': int(row['released'] / 1000),
+                                            'owned_by': 'opencode'} for row in rows]}
+
+    def bridge_chat(self, payload):
+        if not isinstance(payload, dict):
+            raise ValueError('Ungültige OpenAI-Anfrage.')
+        client = self.opencode_client()
+        now = time.time()
+        self.opencode_retry = {name: until for name, until in self.opencode_retry.items() if until > now}
+        skip = set(self.opencode_retry)
+        def switched(old, new, exc):
+            if exc.retry_after_ms:
+                self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
+            self.emit('log', f'OpenCode: {old} nicht verfügbar; weiter mit {new}.\n')
+        result = opencode.completion(client, payload, order=self.settings.get('opencode_order') or [],
+                                     fallback=bool(self.settings.get('opencode_fallback', True)),
+                                     skip=skip, on_switch=switched)
+        self.opencode_last_model = result['model']
+        self.publish('snapshot', {'phase': self.phase, 'busy': self.busy})
+        return result
 
     def preview_plan(self, plan):
         plan = validate_plan(plan)
@@ -195,12 +287,13 @@ class Session(AssistanceMixin):
             self.error = ''
             self.cancel.clear(); self.pause_request.clear()
             self.running = True
+            lock_needed = model_lock and self.provider() != 'opencode'
             def run():
                 operation = function
                 while True:
-                    acquired = MODEL_LOCK.acquire(blocking=False) if model_lock else False
+                    acquired = MODEL_LOCK.acquire(blocking=False) if lock_needed else False
                     try:
-                        if model_lock and not acquired: raise ValueError('Ein anderes Projekt nutzt gerade den Modellserver. Später erneut starten.')
+                        if lock_needed and not acquired: raise ValueError('Ein anderes Projekt nutzt gerade den Modellserver. Später erneut starten.')
                         operation()
                     except Exception as exc:
                         if self.settings.get('debug_logging'):
@@ -226,11 +319,17 @@ class Session(AssistanceMixin):
             self.worker = threading.Thread(target=run, daemon=True); self.worker.start()
         return self.snapshot()
 
-    def studio(self):
+    def studio(self, preflight=False):
+        if self.provider() == 'opencode':
+            return opencode.OpenCodeStudio(
+                self.opencode_client(),
+                fallback=False if preflight else bool(self.settings.get('opencode_fallback', True)),
+                order=self.settings.get('opencode_order') or [], cancel=self.cancel,
+                timeout=int(self.settings['timeout']))
         return Studio(self.settings['base'], self.api_key, int(self.settings['timeout']), self.cancel)
 
     def preflight_options(self, kind='coding'):
-        return suggest(self.studio().inventory(), kind)
+        return suggest(self.studio(preflight=True).inventory(), kind)
 
     def run_preflight(self, data):
         goal = str(data.get('goal', '')).strip()
@@ -238,7 +337,8 @@ class Session(AssistanceMixin):
         if not isinstance(candidates, list) or not all(isinstance(x, str) for x in candidates):
             raise ValueError('Kandidaten müssen eine Liste von Modellschlüsseln sein.')
         def save(report):
-            report['base'] = self.settings['base']
+            report['base'] = self.provider_signature()
+            report['provider'] = self.provider()
             self.preflight = json.loads(json.dumps(report))
             atomic_json(self.preflight_path, report)
             history = self.store.log_root.parent / 'preflight-history'
@@ -252,7 +352,7 @@ class Session(AssistanceMixin):
             self.remaining_budget = 0
             save({'status':'running','accepted':False,'goal':goal,'samples':[],'note':'Vergleich wird vorbereitet.'})
             try:
-                evaluate(self.studio(), goal, candidates, str(data.get('judge','')),
+                evaluate(self.studio(preflight=True), goal, candidates, str(data.get('judge','')),
                     data.get('context_tokens',20000), str(data.get('kind','coding')),
                     data.get('two_temperatures',True) is True, phase, save)
             except Exception as exc:
@@ -266,11 +366,11 @@ class Session(AssistanceMixin):
         report = self.preflight
         if not report or report.get('status') != 'ready': raise ValueError('Keine gültige Empfehlung vorhanden.')
         if report['goal_signature'] != signature(goal): raise ValueError('Aufgabe geändert. Vorabcheck erneut ausführen.')
-        if report['base'] != self.settings['base']: raise ValueError('Modellserver geändert. Vorabcheck erneut ausführen.')
+        if report['base'] != self.provider_signature(): raise ValueError('Modellquelle geändert. Vorabcheck erneut ausführen.')
         recommendation = dict(report['recommendation'])
         def work():
             self.phase = 'Empfohlenes Modell und Kontext laden …'
-            studio = self.studio()
+            studio = self.studio(preflight=True)
             try:
                 ident = studio.switch(recommendation['model'], recommendation['context_tokens'])
                 actual = getattr(studio, 'actual_context', None)
@@ -301,8 +401,16 @@ class Session(AssistanceMixin):
         if goal is not None and signature(goal) != report['goal_signature']:
             raise ValueError('Aufgabe geändert. Vorabcheck erneut ausführen.')
         expected = report['accepted_settings']
-        if self.settings['base'] != report['base'] or any(self.settings[k] != v for k,v in expected.items()):
+        if self.provider_signature() != report['base'] or any(self.settings[k] != v for k,v in expected.items()):
             raise ValueError('Einstellungen weichen von der Empfehlung ab. Empfehlung erneut übernehmen oder Vorabcheck wiederholen.')
+        if self.provider() == 'opencode':
+            studio = self.studio(preflight=True)
+            rows = {row['id']: row for row in studio.client.models(refresh=True)}
+            if expected['model'] not in rows:
+                raise ValueError('Freies OpenCode-Modell nicht mehr verfügbar. Vorabcheck wiederholen.')
+            if expected['context_tokens'] > rows[expected['model']]['context']:
+                raise ValueError('Kontext überschreitet das Modelllimit. Vorabcheck wiederholen.')
+            return
         instances = self.studio().instances()
         if (len(instances) != 1 or instances[0]['id'] != expected['model']
                 or not context_compatible(expected['context_tokens'], instances[0].get('config',{}).get('context_length'))):
@@ -315,12 +423,27 @@ class Session(AssistanceMixin):
             self.check_preflight(goal)
             self.phase = 'Plan wird aus der Beschreibung erzeugt …'
             p = profile(self.settings)
-            if not self.settings['model']: raise ValueError('Bitte zuerst ein Modell unter Einstellungen wählen.')
+            if self.provider() == 'opencode' and not p['model']:
+                p['model'] = self.opencode_client().pick_default()
+                self.settings['model'] = p['model']
+                atomic_json(self.settings_path, self.settings)
+            if not p['model']: raise ValueError('Bitte zuerst ein Modell unter Einstellungen wählen.')
             folder = self.store.log_root.parent / 'planning'; folder.mkdir(exist_ok=True)
             def audit(attempt, raw, error):
                 atomic_json(folder / (str(time.time_ns()) + '.json'), {'attempt':attempt+1,'response':raw,'error':error})
                 self.phase = ('Planantwort wird korrigiert: ' + error) if error else 'Plan validiert; speichern …'
-            plan = chat_plan(self.settings['base'], self.api_key, self.settings['model'], goal, p, audit)
+            if self.provider() == 'opencode':
+                client = self.opencode_client()
+                def switched(old, new, exc):
+                    if exc.retry_after_ms:
+                        self.opencode_retry[old] = time.time() + exc.retry_after_ms / 1000
+                    self.emit('log', f'OpenCode-Tageslimit für {old}; nutze {new}.\n')
+                plan = opencode.chat_plan(client, goal, p, audit, order=self.settings.get('opencode_order') or [],
+                                          fallback=bool(self.settings.get('opencode_fallback', True)),
+                                          on_switch=switched,
+                                          on_model=lambda name: setattr(self, 'opencode_last_model', name))
+            else:
+                plan = chat_plan(self.settings['base'], self.api_key, self.settings['model'], goal, p, audit)
             planning.backup_plan(self.store.project, self.store.state, 'Vor Planerzeugung')
             with self.answer_lock:
                 self.pending_answers.clear()
@@ -341,16 +464,24 @@ class Session(AssistanceMixin):
                 adapter = DemoAdapter()
             else:
                 self.check_preflight()
+                if not s['model'] and self.provider() == 'opencode':
+                    s['model'] = self.opencode_client().pick_default()
+                    self.settings['model'] = s['model']
+                    atomic_json(self.settings_path, self.settings)
                 if not s['model']: raise ValueError('Bitte ein Modell auswählen.')
+                if self.provider() == 'opencode':
+                    # Fail with a clear message before Aider starts if the free service vanished.
+                    self.opencode_client().models(refresh=True)
                 p = profile(s)
-                # Prefer the actual loaded instance limit, never its theoretical maximum.
+                p['provider'] = self.provider()
+                # Prefer the actual loaded/offered limit, never its theoretical maximum.
                 try:
-                    entries = discover_models(s['base'], self.api_key)
+                    entries = self.models()
                     match = next((x for x in entries if x['id'] == s['model']), None)
                     if match and match['loaded_context']:
                         p['context_tokens'] = min(p['context_tokens'], match['loaded_context'])
                         p['output_tokens'] = min(p['output_tokens'], p['context_tokens'] // 4)
-                        p['source'] = 'lmstudio-loaded-instance'
+                        p['source'] = match.get('source', 'model-metadata')
                 except Exception as exc:
                     self.emit('log', 'Modellmetadaten nicht automatisch lesbar; manuelles Profil verwendet: ' + str(exc) + '\n')
                 p['model'] = s['model']
@@ -358,7 +489,16 @@ class Session(AssistanceMixin):
                 if changed:
                     self.store.set_plan(adapted, preserve=True)
                     self.emit('log', 'Modellspezifische Planversion gespeichert: ' + self.store.state['plan_file'] + '\n')
-                adapter = AiderAdapter(s['aider_python'], s['base'], self.api_key, s['model'], s['edit'], int(s['timeout']), p)
+                p['top_p'] = float(s.get('top_p', .95))
+                edit = effective_edit(s['edit'], p, bool(s.get('small_model_mode')))
+                if edit != s['edit']:
+                    self.emit('log', 'Kleines Modell: ganze Dateien werden bevorzugt (Edit-Format whole).\n')
+                if self.provider() == 'opencode':
+                    base, key = self.bridge_base(), 'public'
+                    self.emit('log', 'OpenCode Free: Aider nutzt die lokale Brücke mit automatischem Modell-Fallback.\n')
+                else:
+                    base, key = s['base'], self.api_key
+                adapter = AiderAdapter(s['aider_python'], base, key, s['model'], edit, int(s['timeout']), p)
                 self.phase = 'Aider-CLI prüfen …'
                 self.emit('log', adapter.probe() + '\n')
             if self.cancel.is_set(): self.phase = 'Vor dem Agentenstart gestoppt.'; return
@@ -480,7 +620,7 @@ class Session(AssistanceMixin):
         def work():
             self.remaining_budget = 0
             self.phase = 'Empirische Messreihe wird vorbereitet …'
-            benchmarks.measure(self.studio(), goal, model, judge, kind, contexts, repeats, two,
+            benchmarks.measure(self.studio(preflight=True), goal, model, judge, kind, contexts, repeats, two,
                                lambda text: self.emit('log', text + '\n'), save, force)
             self.phase = 'Messreihe fertig. Gemessene Empfehlung prüfen und bewusst übernehmen.'
         return self.background(work)
@@ -697,16 +837,18 @@ class PilotService:
         self.question_lock = threading.Lock()
         self.questions_at = 0.0
 
-    def get(self, path):
+    def get(self, path, project_id=None):
         path = str(Path(path).resolve())
         with self.guard:
             session = self.sessions.get(path)
             if session is None:
-                session = Session(path)
+                session = Session(path, project_id)
                 session.hub = self.hub
                 session.service = self
                 session.ident = hashlib.sha256(os.path.normcase(path).encode()).hexdigest()[:24]
                 self.sessions[path] = session
+            elif project_id:
+                session.project_id = project_id
             return session
 
     def question_digest(self):

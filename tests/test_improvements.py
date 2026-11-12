@@ -7,7 +7,7 @@ import threading
 import unittest
 from unittest.mock import patch, PropertyMock
 from toolforge_pilot.core import Store,AiderAdapter,Engine,validate_plan
-from toolforge_pilot.profiles import profile,adapt_plan,context_check,ContextBudgetError,discover_models
+from toolforge_pilot.profiles import profile,adapt_plan,context_check,ContextBudgetError,discover_models,effective_edit
 from toolforge_pilot.installations import InstallManager,InstallBlocked,validate_requirement,diagnose
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -31,6 +31,15 @@ class Improvements(unittest.TestCase):
         self.assertEqual(meta['max_tokens'],4096)
         settings=json.loads((folder/'model-settings.yml').read_text())[0]
         self.assertEqual(settings['extra_params']['temperature'],0.65)
+        self.assertEqual(settings['extra_params']['top_p'],.95)
+    def test_small_model_prefers_whole_files_and_top_p_is_kept(self):
+        self.assertEqual(profile({'context_tokens':12000,'output_tokens':2048,'temperature':.2,'top_p':.8})['top_p'],.8)
+        small=profile({'context_tokens':12000,'output_tokens':2048,'temperature':.2})
+        large=profile({'context_tokens':32000,'output_tokens':2048,'temperature':.2})
+        self.assertEqual(effective_edit('auto',small,True),'whole')
+        self.assertEqual(effective_edit('auto',large,True),'auto')
+        self.assertEqual(effective_edit('diff',small,True),'diff')
+        self.assertEqual(effective_edit('auto',small,False),'auto')
     def test_loaded_context_not_theoretical(self):
         def get(url,key):
             if url.endswith('/v1/models') and '/api/' not in url:return {'data':[{'id':'m'}]}

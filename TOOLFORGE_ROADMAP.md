@@ -1,4 +1,4 @@
-# Entwicklungspfad — Stand V1.2
+# Entwicklungspfad — Stand V1.3
 
 01 Projektverwaltung und Pilot: integriert.
 02 Entwicklungsbereich: Dateiliste nach Ordnerpfaden, CodeMirror-Editor, konfliktgeprüftes Speichern und Sicherungen.
@@ -12,6 +12,16 @@
 10 Explizite interne Sandbox-Netzwerke: integriert; Docker Desktop separat erforderlich.
 11 Analyse & Betrieb: inkrementeller Index, empirische Messreihen, Plan-Vorschau, Anwendungsabnahme, Aufgaben-Graph, Recherchebelege, Presets, Export/Import, Logrotation, Tray und Installer.
 12 Marke & Performance: V7-Tool-Logo, V6-DigitEgal-Wortmarke, konsolidierte Berichte und verzögertes Laden großer Oberflächenbereiche.
+13 OpenCode Free & kleine Modelle: kostenlose Modelle ohne Zusatzkonto, automatischer Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, kompaktere Prompts, ganze Dateien, Top-p und Syntaxprüfung.
+
+## V1.3-Schwerpunkte
+
+- OpenCode Free als lokale Brücke zum kostenlosen OpenCode-Inferenzdienst; kein zusätzliches Konto und kein API-Schlüssel in ToolForge.
+- Automatischer Fallback auf das nächste freie Modell, wenn ein Tageslimit erschöpft ist; Reihenfolge und erlaubte Modelle sind einstellbar.
+- Verbesserte Ergebnisse kleiner Modelle durch kompaktere Prompts, Abnahmekriterien, Checklisten, ganze Dateien und eine Syntaxprüfung vor Reparaturschritten.
+- Desktop-Pilot-Schaltfläche startet das echte Pilot-Fenster; „Pilot öffnen“ und „Cockpit öffnen“ sind getrennt.
+- Vorabcheck nach Fehlern oder Planänderungen mit gespeicherten Kandidaten wiederholbar.
+- Versionsstand durchgängig V1.3 beziehungsweise `1.3.0`, Workbench-Stage `13`.
 
 ## V1.2-Schwerpunkte
 

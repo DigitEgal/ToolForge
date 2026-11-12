@@ -1,4 +1,4 @@
-# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.2
+# LM Studio und Modell-Vorabcheck – ToolForge Pilot V1.3
 
 ## Bedienung
 

@@ -1,19 +1,26 @@
-# Projektstand V1.2
+# Projektstand V1.3
 
-ToolForge Pilot V1.2 ist der aktuelle Funktionsstand. V1.2 führt das neue Branding, einen aufgeräumten Dokumentationsstand und eine deutlich kleinere Startlast ein; alle Funktionen aus V1.1 bleiben erhalten. Die vollständige Suite umfasst **150 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
+ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, einen automatischen Modellwechsel bei Tageslimits, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **160 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
 
-Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als zwölfte Etappe eingeordnet.
+Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als dreizehnte Etappe eingeordnet.
 
-## V1.2-Schwerpunkte
+## V1.3-Schwerpunkte
 
-- V7-Logo als Tool-Marke in Sidebar, Abschlussbildschirm und Tutorial.
-- „by DigitEgal“ mit der V6-Wortmarke als Bild, passend skaliert und auch im hellen Design lesbar.
+- OpenCode Free als zweite Modellquelle: lokaler Dienst, keine zusätzlichen Zugangsdaten, Nutzung für Vorabcheck, Planung, Hilfe und Aider-Brücke.
+- Automatischer Wechsel zum nächsten freien Modell nach erschöpftem Tageslimit; Reihenfolge und erlaubte Modelle sind konfigurierbar.
+- Erschöpfte Modelle werden bis zum gemeldeten Reset übersprungen; laufende Chats werden mit dem nächsten Modell fortgesetzt.
+- Kleine Modelle: kompaktere Prompts mit Abnahmekriterien, Checkliste und echten Prüfungen, ganze Dateien statt riskanter Diffs, Top-p-Steuerung und Syntaxprüfung vor der Reparatur.
+- „Pilot öffnen“ startet das Desktop-Fenster tatsächlich; Fehlstarts nennen das Startprotokoll.
+- Vorabcheck lässt sich mit gespeicherten Kandidaten und Auswertungsmodell erneut ausführen; veraltete Berichte werden markiert.
+- API `1.3.0`, Workbench-Stage `13`, Frontend `1.3.0`, Installer `1.3`.
+
+## Funktionsbasis aus V1.2
+
+- V7-Logo und V6-DigitEgal-Wortmarke in Sidebar, Abschlussbildschirm und Tutorial.
 - Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden erst bei Bedarf geladen.
-- Initialer JavaScript-Block: rund 261 kB statt rund 955 kB; CodeMirror bleibt ein separater, bedarfsgeladener Block.
-- Gehashte Vite-Assets dürfen ein Jahr lang unverändert im Browser-Cache liegen; `index.html` bleibt `no-cache`.
-- Ein konsolidierter Testbericht ersetzt die versionsspezifischen Einzelberichte und Umgebungsdateien.
-- Historische Anforderungsabgleiche und die Basisspezifikation liegen im Ordner `docs/archiv/`.
-- API `1.2.0`, Workbench-Stage `12`, Frontend `1.2.0`, Installer `1.2`.
+- Initialer JavaScript-Block rund 261 kB; CodeMirror bleibt ein separater Block.
+- Gehashte Vite-Assets sind langfristig cachebar; `index.html` bleibt `no-cache`.
+- Konsolidierter Testbericht und archivierte historische Anforderungsabgleiche.
 
 ## Funktionsbasis aus V1.1
 

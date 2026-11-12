@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 from backend.pilot_service import PilotService
 from toolforge_pilot.core import project_path
+from toolforge_pilot import opencode
 DEFAULT_DB = Path(__file__).resolve().parent / 'data' / 'toolforge.db'
 ALLOWED_ORIGINS = {'http://127.0.0.1:8000', 'http://localhost:8000', 'http://127.0.0.1:5173', 'http://localhost:5173'}
 
@@ -166,6 +167,18 @@ class PilotLauncher:
         self.process = None
         self.lock = threading.Lock()
 
+    def _python(self):
+        if os.name == 'nt':
+            for name in ('pythonw.exe', 'python.exe'):
+                candidate = ROOT / '.venv' / 'Scripts' / name
+                if candidate.is_file():
+                    return candidate
+        else:
+            candidate = ROOT / '.venv' / 'bin' / 'python'
+            if candidate.is_file():
+                return candidate
+        return Path(sys.executable)
+
     def open(self):
         with self.lock:
             if self.process and self.process.poll() is None:
@@ -178,14 +191,22 @@ class PilotLauncher:
             logfile = folder / 'desktop-start.log'
             env = os.environ.copy()
             env['TOOLFORGE_BROWSER_ORIGIN'] = 'http://127.0.0.1:8000'
+            python = self._python()
             with logfile.open('a', encoding='utf-8') as log:
-                self.process = subprocess.Popen([sys.executable, str(script)], cwd=ROOT, env=env,
+                log.write(f'\n[{datetime.now().isoformat(timespec="seconds")}] Start: {python} {script}\n')
+                log.flush()
+                self.process = subprocess.Popen([str(python), str(script)], cwd=ROOT, env=env,
                                                stdout=log, stderr=subprocess.STDOUT,
                                                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
-            time.sleep(0.2)
+            time.sleep(0.4)
             if self.process.poll() is not None:
-                raise HTTPException(503, f'Der Pilot konnte nicht geöffnet werden. Startprotokoll: {logfile}')
-            return {'status': 'started', 'message': 'Pilot gestartet. Wähle dort deinen Arbeitsordner.'}
+                detail = ''
+                try:
+                    detail = logfile.read_text(encoding='utf-8', errors='replace')[-1200:]
+                except OSError:
+                    pass
+                raise HTTPException(503, f'Der Pilot konnte nicht geöffnet werden. Startprotokoll: {logfile}\n{detail}')
+            return {'status': 'started', 'message': 'Pilot-Fenster geöffnet. Wähle dort deinen Arbeitsordner.'}
 
 
 def create_app(db_path=None, pilot_launcher=None, static_dir=None):
@@ -197,7 +218,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         database.initialize()
         yield
         pilot.close()
-    app = FastAPI(title='ToolForge · lokale Workbench', version='1.2.0', lifespan=lifespan)
+    app = FastAPI(title='ToolForge · lokale Workbench', version='1.3.0', lifespan=lifespan)
     app.state.database = database
     app.state.pilot = pilot
     app.state.shutdown = None
@@ -208,10 +229,12 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         if hostname not in ('127.0.0.1', 'localhost', '::1'):
             return JSONResponse({'detail': 'Nur lokale Hostnamen sind zugelassen.'}, status_code=403)
         if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            # The bundled Aider process uses the local OpenAI bridge and cannot send browser CSRF headers.
+            bridge_request = request.url.path.startswith('/api/projects/') and '/opencode/v1/' in request.url.path
             origin = request.headers.get('origin')
             if origin is not None and origin not in ALLOWED_ORIGINS:
                 return JSONResponse({'detail': 'Zugriff von dieser Webseite ist nicht erlaubt.'}, status_code=403)
-            if request.headers.get('x-toolforge-request') != '1':
+            if not bridge_request and request.headers.get('x-toolforge-request') != '1':
                 return JSONResponse({'detail': 'ToolForge-Anfrageheader fehlt.'}, status_code=403)
             if request.headers.get('sec-fetch-site') == 'cross-site':
                 return JSONResponse({'detail': 'Seitenübergreifende Anfrage abgelehnt.'}, status_code=403)
@@ -278,7 +301,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         if not row: raise HTTPException(404, 'Projekt nicht gefunden.')
         if row.get('archived'): raise HTTPException(409, 'Projekt ist archiviert. Zuerst wiederherstellen.')
         if not row.get('folder_path'): raise HTTPException(409, 'Zuerst einen Arbeitsordner zuordnen.')
-        try: return pilot.get(row['folder_path'])
+        try: return pilot.get(row['folder_path'], ident)
         except (ValueError, RuntimeError, OSError) as exc: raise HTTPException(409, str(exc))
 
     @app.exception_handler(OSError)
@@ -301,7 +324,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         old = database.get(ident).get('folder_path')
         if old and pilot.get(old).busy: raise ValueError('Vor einem Ordnerwechsel den aktiven Lauf stoppen.')
         database.set_folder(ident, str(folder))
-        pilot.get(str(folder))  # inspect saved project state immediately
+        pilot.get(str(folder), ident)  # inspect saved project state immediately
         return database.get(ident)
 
     @app.patch('/api/projects/{ident}', response_model=Project)
@@ -532,6 +555,50 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     @app.post('/api/projects/{ident}/pilot/models')
     def pilot_models(ident: str): return session_for(ident).models()
 
+    @app.post('/api/projects/{ident}/pilot/opencode/status')
+    def pilot_opencode_status(ident: str, data: dict | None = None):
+        return session_for(ident).opencode_status(data or {})
+
+    @app.get('/api/projects/{ident}/opencode/v1/models')
+    def opencode_bridge_models(ident: str):
+        try:
+            return session_for(ident).bridge_models()
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except opencode.OpenCodeError as exc:
+            raise HTTPException(502, str(exc)) from exc
+
+    @app.post('/api/projects/{ident}/opencode/v1/chat/completions')
+    def opencode_bridge_chat(ident: str, payload: dict):
+        try:
+            result = session_for(ident).bridge_chat(payload)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except opencode.OpenCodeError as exc:
+            headers = {}
+            if exc.retry_after_ms and exc.retry_after_ms > 0:
+                headers['Retry-After'] = str(max(1, int(round(exc.retry_after_ms / 1000))))
+            raise HTTPException(exc.status or 502, str(exc), headers=headers) from exc
+        if payload.get('stream') is not True:
+            return result
+        import json as json_module
+        def events():
+            base = {'id': result['id'], 'object': 'chat.completion.chunk', 'created': result['created'],
+                    'model': result['model']}
+            first = {**base, 'choices': [{'index': 0, 'delta': {'role': 'assistant'}, 'finish_reason': None}]}
+            yield 'data: ' + json_module.dumps(first, ensure_ascii=False) + '\n\n'
+            text = result['choices'][0]['message']['content']
+            for offset in range(0, len(text), 400):
+                chunk = {**base, 'choices': [{'index': 0, 'delta': {'content': text[offset:offset + 400]},
+                                              'finish_reason': None}]}
+                yield 'data: ' + json_module.dumps(chunk, ensure_ascii=False) + '\n\n'
+            final = {**base, 'choices': [{'index': 0, 'delta': {}, 'finish_reason': 'stop'}],
+                     'usage': result.get('usage', {})}
+            yield 'data: ' + json_module.dumps(final, ensure_ascii=False) + '\n\n'
+            yield 'data: [DONE]\n\n'
+        return StreamingResponse(events(), media_type='text/event-stream',
+                                 headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
     @app.post('/api/projects/{ident}/pilot/plan')
     def pilot_plan(ident: str, data: dict):
         confirm = data.get('confirm') is True if isinstance(data, dict) else False
@@ -579,7 +646,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
 
     @app.get('/api/workbench')
     def workbench():
-        return {'name': 'ToolForge', 'version': '1.2.0', 'stage': 12, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
+        return {'name': 'ToolForge', 'version': '1.3.0', 'stage': 13, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
 
     dist = Path(static_dir or ROOT / 'frontend' / 'dist')
     if (dist / 'assets').is_dir():

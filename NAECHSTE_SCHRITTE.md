@@ -1,6 +1,6 @@
-# Nützliche nächste Optimierungen (Stand V1.2)
+# Nützliche nächste Optimierungen (Stand V1.3)
 
-Die V1.2-Punkte sind umgesetzt; Details stehen in [ABNAHME.md](ABNAHME.md). Der initiale JavaScript-Block liegt jetzt bei rund 261 kB, der Editor wird separat geladen. Offen bleiben vor allem Zielsystem-, Mess- und Komfortarbeiten:
+Die V1.3-Punkte sind umgesetzt; Details stehen in [ABNAHME.md](ABNAHME.md). Der initiale JavaScript-Block liegt weiterhin bei rund 261 kB, der Editor wird separat geladen. Offen bleiben vor allem Zielsystem-, Mess- und Komfortarbeiten:
 
 1. **Automatisierte UI-Abnahme:** Geführte Tutorials, Projektgruppen, Kachel-/Listenansicht, Plan-Vorschau und den Ein-Klick-Ablauf mit einem echten Browser-End-to-End-Test absichern. Die aktuelle Prüfung beschränkt sich auf TypeScript, Produktionsbuild, Screenshots und einzelne Headless-Szenarien.
 2. **Zielhardware-Messreihe:** Reale LM-Studio-Läufe für mehrere Quantisierungen, Kontexte und Aufgabentypen durchführen und die gemessenen Empfehlungen in Presets dokumentieren.

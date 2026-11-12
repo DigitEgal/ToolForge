@@ -143,6 +143,10 @@ def suggest(rows, kind):
     # Fill up to six distinct installed models so the UI can offer 3–6 candidates.
     for row in available:
         if row['key'] not in chosen: chosen.append(row['key'])
+    if not judge and available:
+        # OpenCode free models have different names; prefer a different catalog
+        # entry than the first candidate so the judge is independent.
+        judge = chosen[-1] if len(chosen) > 1 else chosen[0]
     return {'models': available, 'candidates': chosen[:MAX_CANDIDATES], 'judge': judge, 'catalog': CATALOG}
 
 
@@ -166,7 +170,7 @@ def evaluate(studio, goal, candidates, judge, context, kind, two_temperatures, e
         ' Keine bloße Selbsteinschätzung. JSON mit den nichtleeren Zeichenketten solution, checks, limitations.\nAUFGABE:\n' + goal)
     if estimate(prompt) + 2048 > context: raise ValueError('Arbeitsprobe zu groß für den Testkontext. Kontext erhöhen oder repräsentativen Ausschnitt verwenden.')
     report = {'status':'running', 'goal':goal, 'goal_signature':signature(goal), 'kind':kind,
-              'context_tokens':context, 'judge':judge, 'samples':[], 'recommendation':None,
+              'context_tokens':context, 'judge':judge, 'candidates':list(candidates), 'samples':[], 'recommendation':None,
               'note':'Stichprobe, keine Garantie des besten Modells; kein Code ausgeführt; Kontextgröße ist ein geprüftes Budget, kein gemessenes Optimum.'}
     save(report)
     try:

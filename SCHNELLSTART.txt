@@ -1,4 +1,4 @@
-ToolForge Pilot V1.2
+ToolForge Pilot V1.3
 
 1. Bisherigen Server beenden und ZIP in neuen Programmordner entpacken.
 2. Setup_ToolForge.cmd ausführen (Python 3.11+, Internet nötig).

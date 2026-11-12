@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-V1.2-b8a3ff" alt="Version V1.2">
+  <img src="https://img.shields.io/badge/version-V1.3-b8a3ff" alt="Version V1.3">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-150%20passed-2ea44f" alt="150 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-160%20passed-2ea44f" alt="160 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -22,6 +22,8 @@
 ToolForge verbindet eine Projektverwaltung mit einem kontrollierten KI-Entwicklungsablauf. Du beschreibst ein Ziel, vergleichst optional lokale Modelle in einem Vorabcheck und lässt daraus einen prüfbaren Aufgabenplan erzeugen. Aider bearbeitet die Aufgaben anschließend schrittweise; bestandene Prüfkommandos – nicht bloßer Agententext – liefern den Erfolgsnachweis.
 
 Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.1:8000` erreichbar. Cloud-Dienste und ein KI-Anbieter sind für die Grundfunktionen nicht erforderlich.
+
+> **OpenCode Free:** Optional können kostenlose Modelle ohne zusätzliches Konto über den lokal installierten OpenCode-Dienst genutzt werden. Dabei verlassen die Modell-Prompts deinen Rechner in Richtung des kostenlosen OpenCode-Inferenzdienstes; Code, Pläne und Prüfungen bleiben lokal. Details unter [OpenCode Free](#opencode-free-kostenlose-modelle-ohne-konto).
 
 > **Für wen?** Technisch erfahrene Einzelanwender, die lokale Modelle (z. B. LM Studio) und Aider nutzen möchten, dabei aber Pläne, Dateiänderungen, Tests und Freigaben im Blick behalten wollen.
 
@@ -41,13 +43,21 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 | **Bedienung** | Einheitliches V7-/V6-Branding, Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App; große Bereiche und Editor laden erst bei Bedarf |
 | **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Logrotation, Plan-Sicherungen, Deinstallationsskript, optionales Tray-Symbol und vorbereiteter Windows-Installer |
 
-## Neu in V1.2
+## Neu in V1.3
+
+- **OpenCode Free ohne Zusatzkonto:** Der lokal installierte OpenCode-Dienst stellt kostenlose Coding-Modelle bereit. ToolForge verbindet sich über die lokale, passwortgeschützte OpenCode-API und nutzt sie für Vorabcheck, Planung, Hilfe und als OpenAI-kompatible Brücke für Aider. Ein API-Schlüssel ist nicht nötig.
+- **Automatischer Modellwechsel:** Erschöpft ein kostenloses Modell sein Tageslimit, versucht ToolForge die konfigurierte Reihenfolge weiter und setzt den Auftrag mit dem nächsten freien Modell fort. Bereits erschöpfte Modelle werden bis zum gemeldeten Reset übersprungen. Reihenfolge und erlaubte Modelle sind unter **Einstellungen → Kostenlose Modelle & automatischer Wechsel** konfigurierbar; eine leere Liste nutzt alle verfügbaren freien Modelle.
+- **Mehr Zuverlässigkeit bei kleinen Modellen:** Kompaktere Prompts mit Abnahmekriterien und Prüf-Checkliste, ganze Dateien statt riskanter Diffs, Top-p-Steuerung sowie eine Syntaxprüfung vor dem nächsten Reparaturschritt. Die vorhandene Aufgabenaufteilung und frische Kontextfenster bleiben erhalten.
+- **Pilot-Schaltfläche repariert:** „Pilot öffnen“ startet jetzt tatsächlich das mitgelieferte Desktop-Fenster über die lokale Python-Umgebung; Fehlstarts werden mit Protokollpfad gemeldet. „Cockpit öffnen“ bleibt als separater Weg in die Browser-Workbench erhalten.
+- **Vorabcheck wiederholbar:** Nach Fehlern oder Planänderungen lässt sich der Vorabcheck mit den gespeicherten Kandidaten und dem Auswertungsmodell direkt erneut starten. Ein veralteter Bericht wird sichtbar markiert.
+- **Durchgängig V1.3:** API und FastAPI-Metadaten melden `1.3.0`, die Workbench Stage `13`; Frontend-Paket, Installer, Startbanner, Setup-Ausgabe, Hilfe und Dokumentation nennen V1.3 beziehungsweise dreizehn Etappen.
+
+## Funktionsbasis V1.2
 
 - **Einheitliches Branding:** Das V7-Logo aus `frontend/logos` steht in Sidebar, Abschlussbildschirm und Willkommensdialog. Unten links bleibt genau ein verlinktes „by DigitEgal“, dessen Schriftzug jetzt die V6-Wortmarke als Bild nutzt; Größe und Kontrast sind auf die Sidebar abgestimmt.
 - **Schnellerer Start:** Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden per `React.lazy`/`Suspense` erst beim Öffnen geladen. Der initiale JavaScript-Block sinkt von rund 955 kB auf rund 261 kB; der Editor bleibt ein separater, bedarfsgeladener CodeMirror-Block.
 - **Dauerhaft cachebare Assets:** Gehashte Dateien unter `/assets/` erhalten `public, max-age=31536000, immutable`; `index.html` bleibt `no-cache`, damit ein Update sofort erkannt wird.
 - **Aufgeräumte Dokumentation:** Alle Testberichte und Umgebungsdaten stehen in einem aktuellen [TESTBERICHT.md](TESTBERICHT.md). Historische Anforderungsabgleiche liegen im Archiv; versionsspezifische Einzelberichte, alte Umgebungsdateien und nicht mehr verwendete SVG-Logo-Duplikate wurden entfernt.
-- **Durchgängig V1.2:** API und FastAPI-Metadaten melden `1.2.0`, die Workbench Stage `12`; Frontend-Paket, Installer, Startbanner, Hilfe und Entwicklungspfad tragen V1.2 beziehungsweise zwölf Etappen.
 
 ## Funktionsbasis V1.1
 
@@ -72,15 +82,16 @@ Die vollständige Zuordnung steht in [ABNAHME.md](ABNAHME.md). Testumfang und Pr
 - Python 3.11 oder neuer
 - Internetverbindung für Setup und Pakete
 - Optional: [LM Studio](https://lmstudio.ai/) mit aktivierter Native REST API v1
+- Optional: [OpenCode](https://opencode.ai) und Node.js/npm für kostenlose Modelle ohne Zusatzkonto
 - Optional: Docker Desktop für die Sandbox
 
 **Schritte**
 
 1. ZIP in einen neuen Programmordner entpacken. Einen eventuell laufenden alten ToolForge-Server vorher beenden.
-2. `Setup_ToolForge.cmd` ausführen. Das Setup legt `.venv` für die Workbench und `.aider-venv` für Aider an und prüft Aider tatsächlich auf Version und benötigte Optionen.
+2. `Setup_ToolForge.cmd` ausführen. Das Setup legt `.venv` für die Workbench und `.aider-venv` für Aider an und prüft Aider tatsächlich auf Version und benötigte Optionen. Ist npm vorhanden, installiert es zusätzlich optional `@opencode/cli` und startet den lokalen OpenCode-Dienst; ohne npm bleibt OpenCode einfach deaktiviert.
 3. `Start_ToolForge.cmd` öffnen. Die UI startet unter `http://127.0.0.1:8000`; unter Chrome/Edge öffnet sich ein eigenes App-Fenster.
 4. Beim ersten Start führt ein Willkommensdialog in das UI-Tutorial ein.
-5. LM Studio starten, Modell laden und die Serveradresse unter **Einstellungen** prüfen.
+5. Unter **Einstellungen → Modellquelle** LM Studio wählen und ein Modell laden – oder **OpenCode Free** wählen und die kostenlose Modellliste prüfen.
 
 ```text
 Setup_ToolForge.cmd        einmalig einrichten
@@ -90,6 +101,17 @@ Stop_ToolForge.cmd         Notfall-Stopp bei hängender UI
 ```
 
 Node.js ist für die normale Nutzung nicht erforderlich – das gebaute Frontend liegt bei.
+
+### OpenCode Free: kostenlose Modelle ohne Konto
+
+OpenCode ist ein separat installierter Coding-Agent mit lokalem Hintergrunddienst. ToolForge nutzt dessen lokale API, um kostenlose Modelle wie `deepseek-v4.1-flash-free`, `glm-5.3-flash-free` oder `minimax-m3.1-flash-free` für Vorabcheck, Planung, Hilfe und Aider zu verwenden. Es wird kein OpenCode-Konto und kein API-Schlüssel in ToolForge gespeichert.
+
+1. `Setup_ToolForge.cmd` ausführen, falls npm vorhanden ist. Alternativ manuell `npm install -g @opencode/cli` und `opencode service start`.
+2. Unter **Einstellungen → Modellquelle → OpenCode Free** den Status prüfen oder den Dienst starten.
+3. Ein Modell auswählen. Unter **Kostenlose Modelle & automatischer Wechsel** kann die Reihenfolge der erlaubten Modelle festgelegt werden; leer bedeutet alle verfügbaren freien Modelle.
+4. Bei erschöpftem Tageslimit wechselt ToolForge automatisch zum nächsten Modell und setzt den laufenden Auftrag fort. Ist die gemeinsame Free-Quote vollständig erschöpft, meldet ToolForge den Reset-Zeitpunkt; lokale Modelle bleiben unabhängig davon nutzbar.
+
+Die kostenlosen Modelle laufen über den OpenCode-Inferenzdienst. Prompts und die zur Aufgabe gehörenden Dateiauszüge werden dafür an diesen Dienst gesendet. Für vollständig lokale Verarbeitung LM Studio verwenden.
 
 **Optionaler Installer und Tray:** Unter [installer/](installer/README.md) liegt eine Inno-Setup-6-Definition mit Build- und Signierskript. Der Installer installiert nach `%LOCALAPPDATA%\Programs\ToolForge`; Python 3.11 oder neuer bleibt Voraussetzung. Ohne Code-Signaturzertifikat (`TOOLFORGE_SIGN_CERT`) wird er unsigniert gebaut. Das Tray-Symbol ist optional und benötigt `pip install -r requirements-tray.txt`; ohne diese Pakete startet ToolForge normal weiter.
 
@@ -107,7 +129,7 @@ Für Aider gilt derselbe getrennte Ansatz wie unter Windows; Details stehen in d
 ## Erster Arbeitsablauf
 
 1. **Projekt anlegen** und einen Arbeitsordner außerhalb des ToolForge-Programmordners verbinden.
-2. **Ziel beschreiben** und im Vorabcheck drei bis sechs installierte Modelle vorschlagen lassen.
+2. **Ziel beschreiben** und im Vorabcheck drei bis sechs Modelle vorschlagen lassen – lokal aus LM Studio oder kostenlos über OpenCode Free.
 3. **Vorabcheck starten** oder direkt **„Automatisch: Vorabcheck → Empfehlung → Plan → Start“** wählen.
 4. Empfehlung prüfen, Plan ansehen und die Ausführung starten. Offene Rückfragen erscheinen im Cockpit.
 5. Bestehende Tools über **Entwicklungsbereich → Verbesserungen** erweitern, statt neu zu beginnen.
@@ -132,7 +154,7 @@ python uninstall_toolforge.py --yes --keep-data
 
 ## Sicherheit und Datenschutz
 
-- **Lokal:** Serverbindung an `127.0.0.1`, CORS auf lokale Adressen begrenzt, Zugriffslogs standardmäßig aus.
+- **Lokal:** Serverbindung an `127.0.0.1`, CORS auf lokale Adressen begrenzt, Zugriffslogs standardmäßig aus. OpenCode Free ist optional und nutzt einen lokalen Dienst, der die Modell-Prompts an den kostenlosen OpenCode-Inferenzdienst weiterleitet.
 - **Keine stillen Cloud-Aufrufe:** Websuche ist opt-in und nutzt ausschließlich DuckDuckGo. Jeder Versuch – auch Fehler und null Treffer – landet im Projektjournal.
 - **Keine pauschalen Rechte:** pip-, Chocolatey- und npm-Installationen sind getrennt freigebbar; Prüfwerkzeuge haben eine eigene Einmal-Freigabe.
 - **Geheimnisse:** API-Schlüssel werden in Logs redigiert; ausführliche Diagnosen sind opt-in.
@@ -141,8 +163,8 @@ python uninstall_toolforge.py --yes --keep-data
 
 ## Dokumentation
 
-- [Abnahme und Anforderungsabgleich V1.2](ABNAHME.md)
-- [Konsolidierter Testbericht V1.2 mit Archiv](TESTBERICHT.md)
+- [Abnahme und Anforderungsabgleich V1.3](ABNAHME.md)
+- [Konsolidierter Testbericht V1.3 mit Archiv](TESTBERICHT.md)
 - [Entwicklungspfad](TOOLFORGE_ROADMAP.md)
 - [LM Studio und Modell-Vorabcheck](LM_STUDIO_PRESETS.md)
 - [Start und Projekte](help/01_Start_und_Projekte.md)
@@ -181,6 +203,7 @@ docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
 ## Bekannte Grenzen
 
 - LM Studio muss installiert sein und die Native REST API v1 bereitstellen. Die Messreihe empfiehlt nur eine auf dieser Hardware gemessene Stichprobe, keine allgemein beste Modellfamilie.
+- OpenCode Free benötigt eine lokale OpenCode-Installation. Die kostenlosen Modelle teilen sich ein Tageslimit; bei vollständiger Erschöpfung ist bis zum Reset kein freies Cloud-Modell verfügbar. Prompts werden dabei an den OpenCode-Inferenzdienst gesendet.
 - Der Modell-Vorabcheck und die Messreihe ersetzen keine fachliche Prüfung. Quantisierung, Treiber und andere laufende GPU-Anwendungen beeinflussen Tokens/s, VRAM-Spitzen und Qualitätsstreuung.
 - Docker, Aider, GPU-Messungen, Tray und Installer-Signierung werden nicht durch simulierte Tests ersetzt. In der dokumentierten Testumgebung lief kein Docker-Daemon; Inno Setup und `signtool` waren nicht installiert.
 - Ein vollständig eingefrorener Betriebssystemprozess muss im Taskmanager beendet werden. ToolForge beendet niemals pauschal fremde Python-Prozesse.
@@ -202,9 +225,10 @@ docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
 | **V1.0** | **Pillow-Selbstreparatur, Browser-Schließen, Ein-Klick-Ablauf, Kontexttoleranz, 3–6 Kandidaten, Deinstallation** |
 | **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
 | **V1.2** | **V7-/V6-Branding, konsolidierter Testbericht, aufgeräumte Altlasten, Code-Splitting mit deutlich kleinerem Start-Bundle, immutable Asset-Cache und zwölfte Etappe** |
+| **V1.3** | **OpenCode Free ohne Zusatzkonto, automatischer Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, zuverlässigere kleine Modelle, reparierter Desktop-Pilot und wiederholbarer Vorabcheck** |
 
 ## Lizenz und Credits
 
 MIT-Lizenz – siehe [LICENSE](LICENSE). Copyright © 2026 **DigitEgal**.
 
-ToolForge nutzt unter anderem FastAPI, Uvicorn, SQLite, React, TypeScript, Vite, CodeMirror und Aider. LM Studio und Docker sind optionale, separat zu installierende Werkzeuge.
+ToolForge nutzt unter anderem FastAPI, Uvicorn, SQLite, React, TypeScript, Vite, CodeMirror und Aider. LM Studio, OpenCode und Docker sind optionale, separat zu installierende Werkzeuge.
