@@ -1,12 +1,109 @@
-# Testbericht ToolForge Pilot V1.2
+# Testbericht ToolForge Pilot V1.3
 
-> **Aktueller Bericht mit vollständiger Versionshistorie.** Dieser Bericht ersetzt die früheren Einzeldateien `TESTBERICHT_V01-06.md`, `TESTBERICHT_V07.md`, `TESTBERICHT_V08.md`, `TESTBERICHT_V10.md` und `TESTBERICHT_V11.md`. Die Abschnitte ab **Archiv V1.1** dokumentieren die damaligen Prüfstände unverändert als historische Nachweise.
+> **Aktueller Bericht mit vollständiger Versionshistorie.** Dieser Bericht ersetzt die früheren Einzeldateien `TESTBERICHT_V01-06.md`, `TESTBERICHT_V07.md`, `TESTBERICHT_V08.md`, `TESTBERICHT_V10.md` und `TESTBERICHT_V11.md`. Die Abschnitte ab **Archiv V1.2** dokumentieren die damaligen Prüfstände unverändert als historische Nachweise.
 
-## Aktueller Stand V1.2
+## Aktueller Stand V1.3
+
+Prüfdatum: 13.11.2026. Basis: ToolForge V1.2 einschließlich aller bisherigen Regressionen. Die Prüfung erfolgte mit der ausgelieferten Controller-Umgebung `.venv` und dem gebauten Frontend.
+
+### Automatisierte Tests
+
+```text
+.venv\Scripts\python.exe -m pytest -q
+174 passed, 1 warning in 173.21s (0:02:53)
+```
+
+Die Warnung betrifft die bekannte Starlette-Deprecation im TestClient (`httpx` statt `httpx2`); sie ist kein Fehlschlag. Die Suite umfasst jetzt 174 Tests; neu für V1.3 sind:
+
+- `tests/test_routing.py` prüft Quellen-Reihenfolgen, Präfixe, Quota-Sperren, API-Modell-Fallback, Preset-Validierung und erlaubte Ausweichquellen.
+- `tests/test_opencode.py` und `tests/test_preflight.py` prüfen den gemeinsamen Free-Katalog, das geteilte Tageslimit ohne Free-zu-Free-Wechsel, die Fehlerweitergabe, die Studio-Fassade, die OpenAI-Brücke, die Dienstdatei und den wiederholbaren Vorabcheck.
+- `backend/tests/test_api.py::test_open_pilot_and_opencode_console_routes` prüft den API-Aufruf für „Pilot öffnen“ und die bedarfsgesteuerte OpenCode-Konsole.
+- `backend/tests/test_api.py`, `backend/tests/test_api_v11.py` und `tests/test_v08.py` wurden an die Quellenplanung, Version `1.3.0` und Stage `13` angepasst.
+- Alle V1.2-, V1.1-, V1.0-, 0.8- und früheren Prüfungen bleiben in derselben Suite aktiv.
+
+### Frontend-Build
+
+```text
+npm run build
+toolforge-workbench@1.3.0
+tsc --noEmit
+vite build
+```
+
+Ergebnis: TypeScript-Prüfung und Produktionsbuild erfolgreich, 59 Module transformiert.
+
+| Datei | Größe | gzip |
+|---|---:|---:|
+| `index.html` | 0,52 kB | 0,34 kB |
+| CSS `index-BcmibR3A.css` | 36,10 kB | 8,05 kB |
+| Initiales JavaScript `index-CWuaPj0i.js` | **261,66 kB** | **81,04 kB** |
+| `PilotPanel` | 51,22 kB | 14,44 kB |
+| `AdvancedPanel` | 22,49 kB | 5,91 kB |
+| `DeveloperPanel` | 16,31 kB | 5,45 kB |
+| `HelpPanel` | 3,48 kB | 1,45 kB |
+| `ProjectManager` | 3,73 kB | 1,58 kB |
+| `ImprovementPanel` | 5,14 kB | 2,08 kB |
+| `CodeEditor` (CodeMirror, bedarfsgeladen) | 611,61 kB | 214,21 kB |
+| `LogoV7_OnlyLOGO.png` | 48,48 kB | – |
+| `LogoV6_textONLY.png` | 61,38 kB | – |
+
+Der initiale JavaScript-Block bleibt mit 261,66 kB nahezu unverändert; die neuen Modellquellen liegen im bedarfsgeladenen `PilotPanel`. CodeMirror bleibt ein separater Block. Die einzige Chunk-Warnung betrifft weiterhin den bewusst verzögerten Editor und ist kein Buildfehler.
+
+### Lokaler API-, Start- und Cache-Smoke-Test
+
+Die V1.3-Anwendung wurde mit der ausgelieferten `.venv` als echter Uvicorn-Server auf Port `8124` gestartet (temporäre Datenbank). Zusätzlich wurde der Desktop-Start direkt über `PilotLauncher` ausgeführt.
+
+| Prüfung | Ergebnis |
+|---|---|
+| `/api/workbench` | Version `1.3.0`, Stage `13`, Pilot enthalten |
+| `/` | HTTP 200, ToolForge-Titel, `Cache-Control: no-cache` |
+| Gehashtes Asset `/assets/index-CWuaPj0i.js` | HTTP 200, `Cache-Control: public, max-age=31536000, immutable` |
+| „Pilot öffnen“ (`POST /api/pilot/open`) | API-Test mit injiziertem Launcher erfolgreich |
+| Echter `PilotLauncher.open()` | `pythonw.exe` startete `start_toolforge_pilot.py`; Prozess lief nach 5 Sekunden noch, Protokolleintrag geschrieben, danach für den Test beendet |
+| OpenCode-Konsole (`POST /api/projects/{ident}/pilot/opencode/console`) | API-Test mit gepatchtem Terminalstart erfolgreich; Start erfolgt ausschließlich auf Klick |
+| Startprotokoll | `%APPDATA%\ToolForgePilot\desktop-start.log` enthält Startbefehl ohne Fehlerausgabe |
+
+### V1.3-Nachweise im Einzelnen
+
+| Punkt | Beleg | Grenze |
+|---|---|---|
+| Desktop-Pilot | API-Test, Quellprüfung und echter Start-Smoke-Test mit laufendem `pythonw.exe` | Kein vollständiger Klickdurchlauf aller Dialoge auf einem frischen Zielsystem. |
+| Wiederholbarer Vorabcheck | `test_session_can_rerun_preflight_from_stored_candidates`, Routing-/Preflight-Tests, UI-Quellprüfung | Keine visuelle Browserabnahme aller Fehlerzustände. |
+| Kleine Modelle unter 16 GB | Python-Tests für Modellmetadaten, kompakte Prompts, ganze Dateien, Top-p und Syntaxfehler | Reale Modellqualität und VRAM-Messung bleiben Zielhardware-Aufgabe. |
+| OpenCode Free | Katalog-/Brücken-/Quota-Tests mit Fakes; realer Katalog und Fehlerbild `502 rate_limit` mit langem `retry_after` beobachtet | Kein realer Free-Modelllauf während der Kontingentsperre. |
+| Gemeinsames Free-Kontingent | Quota-Tests: Free-Quelle wird gesperrt, kein Free-zu-Free-Wechsel, nur erlaubte Lokal-/API-Quellen | Kein Test über einen realen Tageswechsel. |
+| Modellquellen-Presets | `tests/test_routing.py`, `test_configure_validates_preset_and_keeps_per_source_models`, TypeScript-Build | Keine vollständige Bedienabnahme aller sechs Presets im Browser. |
+| Version und Stage | API `1.3.0`, Workbench Stage `13`, Frontend-Paket `1.3.0`, Installer `1.3` | Signierter Installer nicht gebaut. |
+| Bisherige Funktionen | Vollständige Suite: **174 bestanden**, eine bekannte Warnung | Reale Modell-, Docker-, Aider-, Tray- und Signaturläufe bleiben offen. |
+
+### Umgebung
+
+- Controller: Python 3.11.9, Windows 10, Node.js 26.13.0, npm 11.20.0.
+- Pakete: pytest 9.2.0, FastAPI 0.162.2, httpx 0.28.1, Uvicorn 0.54.0, Pydantic 2.14.3, Starlette 1.10.0.
+- Aider im separaten `.aider-venv`: 0.86.2, gepinnt über `requirements-aider.txt`.
+- Docker-CLI: 29.9.2; Docker Desktop Linux-Engine im Testzeitpunkt nicht erreichbar.
+- Browser: Chrome 157.0.8103.50; Headless-Screenshots und der V1.1-Browserlauf waren erfolgreich.
+- Installer: Inno Setup und Windows SDK/`signtool` fehlen; die Definition ist vorhanden, aber nicht als EXE gebaut.
+
+### Nicht als real getestet
+
+- GPU-/VRAM-Messung mit einem geladenen LM-Studio-Modell und reale Modellqualität.
+- Docker-Image-Build, Container-Paketinstallation und Netzwerkbetrieb mit laufendem Docker-Daemon.
+- Signierter Windows-Installer und eine vollständige Installations-/Deinstallationsrunde.
+- Tray-Symbol mit installiertem `pystray`/Pillow.
+- Aider-Ausführung gegen ein reales Modell.
+- Free-Modelllauf während eines offenen Tageskontingents; das Kontingent war zum Prüfzeitpunkt erschöpft.
+- Dauerhafter Browser-Reconnect der SSE-Kanäle über Stunden.
+
+Diese Punkte sind im Code vorbereitet und durch simulierte beziehungsweise Validierungstests abgesichert. Sie ersetzen keine Zielsystemabnahme.
+
+---
+
+# Archiv V1.2
 
 Prüfdatum: 10.11.2026. Basis: ToolForge V1.1 einschließlich aller bisherigen Regressionen. Die Prüfung erfolgte mit der ausgelieferten Controller-Umgebung `.venv` und dem gebauten Frontend.
 
-### Automatisierte Tests
+## Automatisierte Tests
 
 ```text
 .venv\Scripts\python.exe -m pytest -q tests backend/tests
@@ -20,7 +117,7 @@ Die Warnung betrifft die bekannte Starlette-Deprecation im TestClient (`httpx` s
 - Alle V1.1-Prüfungen für Index, Plan-Diff, Aufgaben-Graph, Anwendungsabnahme, Benchmarks, Recherche, Umgebungen, Presets, Export/Import, Logrotation, SSE und Sandbox bleiben unverändert aktiv.
 - Die vollständigen V1.0-, 0.8- und früheren Regressionen sind in derselben Suite enthalten.
 
-### Branding und Oberfläche
+## Branding und Oberfläche
 
 - `frontend/src/BrandMark.tsx` bindet `frontend/logos/LogoV7_OnlyLOGO.png` als Tool-Logo ein. Sidebar, Abschlussbildschirm und Tutorial-Willkommen verwenden denselben Wrapper.
 - `frontend/src/DigitEgalLogo.tsx` zeigt „by“ plus `frontend/logos/LogoV6_textONLY.png`. Die Wortmarke hat 20 px Bildhöhe (Sidebar 18 px), das „by“ 13 px (Sidebar 12 px). Der Eintrag ist in der Seitenleiste horizontal zentriert. Die Breite folgt automatisch dem Seitenverhältnis von 2657 : 748 (rund 3,55 : 1).
@@ -28,7 +125,7 @@ Die Warnung betrifft die bekannte Starlette-Deprecation im TestClient (`httpx` s
 - Unten links bleibt genau ein externer Link auf <https://digitegal.de>.
 - Headless-Chrome-Screenshots bei 1440 × 1000 in Dark und Light geprüft: Logo, Sidebar, zentrierte Wortmarke und Willkommensdialog werden korrekt gerendert. Die Wortmarke ist gut lesbar und gegenüber dem ersten Entwurf deutlich vergrößert.
 
-### Frontend-Build und Ladeverhalten
+## Frontend-Build und Ladeverhalten
 
 ```text
 npm run build
@@ -56,7 +153,7 @@ Ergebnis: TypeScript-Prüfung und Produktionsbuild erfolgreich.
 
 Der initiale JavaScript-Block sank von 954,99 kB (V1.1) auf 261,38 kB, gzip von 316,35 kB auf 80,99 kB. Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden per `React.lazy`/`Suspense` erst beim Öffnen geladen. Die einzige verbleibende Chunk-Warnung betrifft den bewusst verzögert geladenen CodeMirror-Editor und ist kein Buildfehler.
 
-### Lokaler API-, SSE- und Cache-Smoke-Test
+## Lokaler API-, SSE- und Cache-Smoke-Test
 
 Die V1.2-Anwendung wurde mit der ausgelieferten `.venv` als echter Uvicorn-Server auf Port `8123` gestartet (temporäre Datenbank, temporärer Projektordner). Port `8000` war durch eine bereits laufende V1.0-Instanz belegt und wurde nicht verändert.
 
@@ -77,7 +174,7 @@ Die V1.2-Anwendung wurde mit der ausgelieferten `.venv` als echter Uvicorn-Serve
 
 Damit sind Start, Datenbankanlage, Index, Analyse, Plan, Graph, Export, beide SSE-Kanäle und der neue Asset-Cache gegen einen echten lokalen Server nachgewiesen.
 
-### V1.2-Nachweise im Einzelnen
+## V1.2-Nachweise im Einzelnen
 
 | Punkt | Beleg | Grenze |
 |---|---|---|
@@ -89,7 +186,7 @@ Damit sind Start, Datenbankanlage, Index, Analyse, Plan, Graph, Export, beide SS
 | Version und Stage | API `1.2.0`, Workbench Stage `12`, Frontend-Paket `1.2.0`, Installer `1.2` | Signierter Installer nicht gebaut. |
 | Bisherige Funktionen | Vollständige Suite: **150 bestanden**, eine bekannte Warnung | Reale Modell-, Docker-, Aider-, Tray- und Signaturläufe bleiben offen. |
 
-### Umgebung
+## Umgebung
 
 - Controller: Python 3.11.9, Windows 10, Node.js 26.13.0, npm 11.20.0.
 - Pakete: pytest 9.2.0, FastAPI 0.162.2, httpx 0.28.1, Uvicorn 0.54.0, Pydantic 2.14.3, Starlette 1.10.0.
@@ -98,7 +195,7 @@ Damit sind Start, Datenbankanlage, Index, Analyse, Plan, Graph, Export, beide SS
 - Browser: Chrome 157.0.8103.50; Headless-Screenshots und der V1.1-Browserlauf waren erfolgreich.
 - Installer: Inno Setup und Windows SDK/`signtool` fehlen; die Definition ist vorhanden, aber nicht als EXE gebaut.
 
-### Nicht als real getestet
+## Nicht als real getestet
 
 - GPU-/VRAM-Messung mit einem geladenen LM-Studio-Modell und reale Modellqualität.
 - Docker-Image-Build, Container-Paketinstallation und Netzwerkbetrieb mit laufendem Docker-Daemon.

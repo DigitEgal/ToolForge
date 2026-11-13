@@ -1,6 +1,6 @@
 # Projektstand V1.3
 
-ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, klar wählbare Modellquellen-Presets statt riskanter Free-Modellwechsel, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **173 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
+ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, klar wählbare Modellquellen-Presets statt riskanter Free-Modellwechsel, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **174 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
 
 Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als dreizehnte Etappe eingeordnet.
 

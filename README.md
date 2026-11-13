@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/version-V1.3-b8a3ff" alt="Version V1.3">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-173%20passed-2ea44f" alt="160 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-174%20passed-2ea44f" alt="174 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -226,7 +226,7 @@ docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
 | **V1.0** | **Pillow-Selbstreparatur, Browser-Schließen, Ein-Klick-Ablauf, Kontexttoleranz, 3–6 Kandidaten, Deinstallation** |
 | **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
 | **V1.2** | **V7-/V6-Branding, konsolidierter Testbericht, aufgeräumte Altlasten, Code-Splitting mit deutlich kleinerem Start-Bundle, immutable Asset-Cache und zwölfte Etappe** |
-| **V1.3** | **OpenCode Free ohne Zusatzkonto, automatischer Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, zuverlässigere kleine Modelle, reparierter Desktop-Pilot und wiederholbarer Vorabcheck** |
+| **V1.3** | **OpenCode Free ohne Zusatzkonto, bewusste Modellquellen-Presets statt Free-Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, zuverlässigere kleine Modelle, reparierter Desktop-Pilot und wiederholbarer Vorabcheck** |
 
 ## Lizenz und Credits
 

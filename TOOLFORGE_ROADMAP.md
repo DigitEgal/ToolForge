@@ -12,12 +12,12 @@
 10 Explizite interne Sandbox-Netzwerke: integriert; Docker Desktop separat erforderlich.
 11 Analyse & Betrieb: inkrementeller Index, empirische Messreihen, Plan-Vorschau, Anwendungsabnahme, Aufgaben-Graph, Recherchebelege, Presets, Export/Import, Logrotation, Tray und Installer.
 12 Marke & Performance: V7-Tool-Logo, V6-DigitEgal-Wortmarke, konsolidierte Berichte und verzögertes Laden großer Oberflächenbereiche.
-13 OpenCode Free & kleine Modelle: kostenlose Modelle ohne Zusatzkonto, automatischer Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, kompaktere Prompts, ganze Dateien, Top-p und Syntaxprüfung.
+13 OpenCode Free & kleine Modelle: kostenlose Modelle ohne Zusatzkonto, Modellquellen-Presets statt Free-Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, kompaktere Prompts, ganze Dateien, Top-p und Syntaxprüfung.
 
 ## V1.3-Schwerpunkte
 
 - OpenCode Free als lokale Brücke zum kostenlosen OpenCode-Inferenzdienst; kein zusätzliches Konto und kein API-Schlüssel in ToolForge.
-- Automatischer Fallback auf das nächste freie Modell, wenn ein Tageslimit erschöpft ist; Reihenfolge und erlaubte Modelle sind einstellbar.
+- Gemeinsames Free-Tageslimit: Bei Erschöpfung wird die Free-Quelle gesperrt und nur auf erlaubte lokale oder bezahlte API-Quellen ausgewichen; ein anderer Free-Modellname schafft kein zusätzliches Kontingent. Reihenfolge und erlaubte Quellen sind einstellbar.
 - Verbesserte Ergebnisse kleiner Modelle durch kompaktere Prompts, Abnahmekriterien, Checklisten, ganze Dateien und eine Syntaxprüfung vor Reparaturschritten.
 - Desktop-Pilot-Schaltfläche startet das echte Pilot-Fenster; „Pilot öffnen“ und „Cockpit öffnen“ sind getrennt.
 - Vorabcheck nach Fehlern oder Planänderungen mit gespeicherten Kandidaten wiederholbar.

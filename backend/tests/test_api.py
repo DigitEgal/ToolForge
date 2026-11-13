@@ -108,6 +108,33 @@ def test_settings_and_simulated_browser_run(client,tmp_path):
     assert snapshot['progress']['percent']==100
     assert len(list((folder/'.toolforge/logs').glob('*/output.log')))==3
 
+def test_open_pilot_and_opencode_console_routes(tmp_path, monkeypatch):
+    monkeypatch.setenv('TOOLFORGE_PILOT_DATA', str(tmp_path / 'controller'))
+    calls = {}
+
+    class Launcher:
+        def open(self):
+            calls['launcher'] = True
+            return {'status': 'started', 'message': 'Pilot-Fenster geöffnet.'}
+
+    app = create_app(tmp_path / 'db.sqlite3', pilot_launcher=Launcher())
+    with TestClient(app, base_url='http://127.0.0.1:8000', headers=HEADERS) as c:
+        opened = c.post('/api/pilot/open', json={})
+        assert opened.status_code == 200
+        assert opened.json()['status'] == 'started'
+        assert calls['launcher'] is True
+
+        folder = tmp_path / 'console'; folder.mkdir()
+        ident = c.post('/api/projects', json={'name': 'Console'}).json()['id']
+        assert c.post(f'/api/projects/{ident}/folder', json={'path': str(folder)}).status_code == 200
+        with patch('backend.pilot_service.opencode.open_console',
+                   return_value={'started': True, 'command': 'opencode', 'directory': str(folder)}) as console:
+            response = c.post(f'/api/projects/{ident}/pilot/opencode/console', json={})
+        assert response.status_code == 200
+        assert response.json()['started'] is True
+        console.assert_called_once()
+
+
 def test_database_migration(tmp_path):
     db=tmp_path/'old.sqlite3'
     with sqlite3.connect(db) as con:
