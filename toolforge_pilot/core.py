@@ -398,8 +398,9 @@ def clean_env():
 class AiderAdapter:
     REQUIRED = ['--message-file', '--model', '--file', '--yes-always', '--no-detect-urls', '--disable-playwright',
                 '--no-suggest-shell-commands', '--no-auto-commits', '--no-dirty-commits', '--no-auto-lint', '--no-auto-test', '--no-git', '--config', '--env-file', '--edit-format', '--no-fancy-input', '--no-pretty', '--no-show-model-warnings', '--model-metadata-file', '--model-settings-file', '--map-tokens', '--max-chat-history-tokens']
-    def __init__(self, python, base, key, model, edit='auto', timeout=900, model_profile=None):
+    def __init__(self, python, base, key, model, edit='auto', timeout=900, model_profile=None, source='local'):
         self.python, self.base, self.key, self.model, self.edit, self.timeout = python, base, key, model, edit, timeout
+        self.source = source
         from .profiles import profile
         self.model_profile = profile({**(model_profile or {}), 'model': model})
         self.help = ''
@@ -481,8 +482,14 @@ def progress(state):
 
 
 class Engine:
-    def __init__(self, store, adapter, python, emit=lambda kind, value: None, install_policy=None):
+    def __init__(self, store, adapter, python, emit=lambda kind, value: None, install_policy=None,
+                 handoff_factory=None, review_chat=None):
         self.store, self.adapter, self.python, self.emit = store, adapter, python, emit
+        # V1.4 collaboration: the primary adapter stays available so a task can
+        # be handed to explicitly configured models and later return to normal.
+        self.base_adapter = adapter
+        self.handoff_factory = handoff_factory
+        self.review_chat = review_chat
         self.stop = threading.Event(); self.pause = threading.Event()
         from .installations import InstallManager
         self.installer = InstallManager(store.project, python, install_policy or {}, self.stop, self.log)
@@ -501,6 +508,299 @@ class Engine:
         self.emit('log', text)
         if getattr(self, 'logfile', None):
             with self.logfile.open('a', encoding='utf-8') as f: f.write(text)
+
+    # --- V1.4: model handoff and independent review -----------------------
+    def current_model(self, adapter=None):
+        from . import collaboration
+        adapter = adapter or self.adapter
+        source = getattr(adapter, 'source', '') or 'local'
+        model = str(getattr(adapter, 'model', '') or '')
+        return source, model
+
+    def current_key(self, adapter=None):
+        from . import collaboration
+        source, model = self.current_model(adapter)
+        return collaboration.key(source, model) if model else ''
+
+    def restore_adapter(self, reason=''):
+        if self.adapter is not self.base_adapter:
+            source, model = self.current_model(self.adapter)
+            if reason:
+                self.log('\n' + reason + '\n')
+            self.log('Zurück zum Hauptmodell: ' + str(getattr(self.base_adapter, 'model', '')).strip() + '.\n')
+            self.adapter = self.base_adapter
+
+    def handoff_config(self):
+        from . import collaboration
+        policy = self.policy or {}
+        if not policy.get('handoff_enabled', True):
+            return []
+        try:
+            return collaboration.clean_models(policy.get('handoff_models') or [])
+        except ValueError as exc:
+            self.log('Übernahme-Konfiguration ungültig: ' + str(exc) + '\n')
+            return []
+
+    def handoff_message(self, error, reason=''):
+        tried = []
+        for row in (getattr(self, '_handoff_last', None) or []):
+            tried.append(row)
+        return ('Das aktive Modell konnte den Auftrag nicht sicher fortsetzen'
+                + (f' ({reason})' if reason else '') + '. '
+                + (f'Bereits versucht: {", ".join(tried)}. ' if tried else '')
+                + 'Bitte Modellwechsel, Aufgabenumfang oder fehlende Angaben prüfen.\n\n'
+                + str(error or '')[-2500:])
+
+    def try_handoff(self, task, row, error, reason=''):
+        """Switch to the next configured handoff model.
+
+        The next loop iteration executes the same task with the new adapter.
+        Returns False when no unused handoff model remains; the caller then asks
+        the user.  Every attempt is stored in persistent task state.
+        """
+        if not self.handoff_factory:
+            return False
+        candidates = self.handoff_config()
+        if not candidates:
+            return False
+        record = row.setdefault('handoff', {'tried': [], 'history': [], 'cycles': 0})
+        tried = record.setdefault('tried', [])
+        current = self.current_key()
+        self._handoff_last = list(tried)
+        failures = []
+        for key in candidates:
+            if key in tried or key == current:
+                continue
+            try:
+                adapter = self.handoff_factory(key)
+            except Exception as exc:
+                tried.append(key)
+                failures.append(f'{key}: {exc}')
+                record.setdefault('history', []).append(
+                    {'model': key, 'outcome': 'unavailable', 'error': str(exc)[-800:], 'at': time.time()})
+                self.log('\nÜbernahme-Modell nicht verfügbar: ' + key + ': ' + str(exc) + '\n')
+                continue
+            if not adapter:
+                continue
+            tried.append(key)
+            record.update(active=key, run_next=True, cycles=int(record.get('cycles', 0)) + 1)
+            record.setdefault('history', []).append(
+                {'model': key, 'outcome': 'started', 'reason': reason, 'at': time.time()})
+            self._handoff_last = list(tried)
+            self.adapter = adapter
+            source, model = self.current_model(adapter)
+            row['status'] = 'OPEN'
+            row['error'] = (str(error or '') + '\n\nÜbernahme durch ' + key +
+                            ': Das vorherige Modell konnte den Auftrag nicht abschließen. '
+                            'Prüfe den bisherigen Stand kritisch und setze die Aufgabe fort.').strip()
+            self.store.event('handoff', {'task': task['id'], 'from': current, 'to': key,
+                                         'reason': reason, 'error': str(error or '')[-2000:]})
+            self.emit('state', {'message': 'Übernahme: ' + key + ' bearbeitet ' + task['id'] + '.',
+                                'status': 'RUNNING'})
+            self.log('\nMODELLWECHSEL: ' + key + ' übernimmt ' + task['id'] +
+                     (' (' + reason + ')' if reason else '') + '. Vorheriges Modell: ' + (current or '—') + '.\n')
+            return True
+        if failures:
+            row['error'] = (str(error or '') + '\n\nKein Übernahme-Modell verfügbar:\n' +
+                            '\n'.join(failures[-3:])).strip()
+        return False
+
+    def review_config(self):
+        from . import collaboration
+        policy = self.policy or {}
+        if not policy.get('review_enabled', True):
+            return []
+        try:
+            return collaboration.clean_models(policy.get('review_models') or [])
+        except ValueError as exc:
+            self.log('Prüfmodell-Konfiguration ungültig: ' + str(exc) + '\n')
+            return []
+
+    def _review_files(self, files, budget=54000):
+        chunks = []
+        used = 0
+        for relative in list(dict.fromkeys(files or []))[:12]:
+            try:
+                path = contained(self.store.project, relative)
+                if not path.is_file() or path.stat().st_size > 2_000_000:
+                    continue
+                text = path.read_text(encoding='utf-8-sig', errors='replace')
+            except (OSError, ValueError):
+                continue
+            text = text[:14000]
+            if used + len(text) > budget:
+                text = text[:max(0, budget - used)]
+            if not text:
+                break
+            chunks.append({'path': relative, 'text': text})
+            used += len(text)
+            if used >= budget:
+                break
+        return chunks
+
+    def _reviewers_for(self, creators):
+        from . import collaboration
+        reviewers = self.review_config()
+        if not reviewers:
+            return []
+        blocked = {collaboration.qualified(item) for item in creators if item}
+        return [key for key in reviewers if collaboration.qualified(key) not in blocked]
+
+    def _run_reviews(self, prompt, reviewers, kind='task'):
+        from . import collaboration
+        results = []
+        for key in reviewers:
+            try:
+                text = self.review_chat(key, prompt) if self.review_chat else ''
+                verdict = collaboration.parse_review(text)
+                result = {**verdict, 'model': key, 'at': time.time(), 'kind': kind}
+                self.store.event('review', result)
+                self.log('\nPRÜFUNG durch ' + key + ': ' + verdict['verdict'] +
+                         (' · ' + '; '.join(verdict['issues'][:3]) if verdict['issues'] else '') + '\n')
+                results.append(result)
+                if verdict['verdict'] == 'reject':
+                    break
+            except Exception as exc:
+                self.log('\nPrüfmodell nicht erfolgreich (' + key + '): ' + str(exc) + '\n')
+                self.store.event('review', {'model': key, 'verdict': 'error',
+                                            'error': str(exc)[-1200:], 'kind': kind, 'at': time.time()})
+                results.append({'model': key, 'verdict': 'error', 'error': str(exc)[-1200:],
+                                'at': time.time(), 'kind': kind})
+        return results
+
+    def _review_failed(self, task, row, results, message):
+        technical = not any(item.get('verdict') in ('approve', 'reject') for item in results)
+        row['review'] = {'status': 'error' if technical else 'rejected',
+                         'results': results, 'at': time.time(), 'fingerprint': fingerprint(self.store.project)}
+        row['review_rejections'] = int(row.get('review_rejections', 0)) + (0 if technical else 1)
+        row['status'] = 'OPEN'
+        row['error'] = message
+        if technical:
+            self.question(task['id'], 'Die unabhängige Prüfung konnte nicht durchgeführt werden. '
+                          'Prüfmodelle oder Quellen anpassen: ' + str(message)[-1200:], message)
+            return False
+        if row['review_rejections'] >= 2:
+            if self.try_handoff(task, row, message, 'REVIEW_REJECTED'):
+                return False
+            self.question(task['id'], 'Die unabhängige Prüfung hat den Auftrag zweimal abgelehnt. '
+                          'Bitte Prüfmodell wechseln oder Aufgabe eingrenzen:\n' + str(message)[-1500:], message)
+            return False
+        self.update('READY', 'Unabhängige Prüfung hat Mängel benannt; gezielte Reparatur folgt.')
+        return False
+
+    def review_task(self, task, report):
+        from . import collaboration
+        row = self.store.state['tasks'][task['id']]
+        reviewers = self._reviewers_for([row.get('creator') or self.current_key()])
+        if not reviewers:
+            if self.review_config():
+                row['review'] = {'status': 'skipped', 'reason': 'Kein Prüfmodell ist vom Ersteller verschieden.',
+                                 'at': time.time()}
+            else:
+                row['review'] = {'status': 'skipped', 'reason': 'Keine Prüfmodelle ausgewählt.',
+                                 'at': time.time()}
+            return True
+        current_fp = fingerprint(self.store.project)
+        previous = row.get('review') or {}
+        if previous.get('status') == 'approved' and previous.get('fingerprint') == current_fp:
+            return True
+        checks = [check.get('argv') for check in task.get('checks', []) if isinstance(check, dict)]
+        prompt = collaboration.review_prompt(task, self._review_files(task.get('files', [])),
+                                             checks, row.get('creator') or self.current_key())
+        results = self._run_reviews(prompt, reviewers, 'task')
+        approvals = [item for item in results if item.get('verdict') == 'approve']
+        rejections = [item for item in results if item.get('verdict') == 'reject']
+        minimum = max(1, int((self.policy or {}).get('review_min_approvals', 1) or 1))
+        if len(approvals) >= minimum and not rejections:
+            row['review'] = {'status': 'approved', 'results': results, 'at': time.time(),
+                             'fingerprint': current_fp}
+            self.update('READY', 'Unabhängig geprüft: ' + task['title'] + ' (' +
+                        ', '.join(item['model'] for item in approvals) + ').')
+            return True
+        if rejections:
+            issues = []
+            for item in rejections:
+                issues.extend(item.get('issues') or item.get('reasons') or [])
+            message = ('Unabhängige Prüfung (' + ', '.join(item['model'] for item in rejections) +
+                       ') hat Mängel festgestellt:\n- ' + '\n- '.join(dict.fromkeys(issues[:8])) +
+                       '\n\nPrüfausgabe:\n' + str(report or '')[-3000:])
+            self._review_failed(task, row, results, message)
+            return False
+        if not (self.policy or {}).get('review_strict', True):
+            row['review'] = {'status': 'skipped', 'results': results, 'at': time.time(),
+                             'reason': 'Kein gültiges Prüfurteil; strenger Modus ist aus.',
+                             'fingerprint': current_fp}
+            self.update('READY', 'Unabhängige Prüfung technisch nicht möglich; strenger Modus ist aus.')
+            return True
+        message = ('Kein Prüfmodell lieferte ein gültiges Urteil. Ergebnisse:\n' +
+                   json.dumps(results[-4:], ensure_ascii=False)[-3000:])
+        self._review_failed(task, row, results, message)
+        return False
+
+    def review_final(self, state):
+        from . import collaboration
+        creators = {row.get('creator') for row in state['tasks'].values() if row.get('creator')}
+        base_key = self.current_key(self.base_adapter)
+        if base_key:
+            creators.add(base_key)
+        reviewers = self._reviewers_for(creators)
+        if not reviewers:
+            state['final_review'] = {'status': 'skipped',
+                                     'reason': 'Keine vom Ersteller unabhängigen Prüfmodelle ausgewählt.',
+                                     'at': time.time()}
+            return True
+        current_fp = fingerprint(self.store.project)
+        previous = state.get('final_review') or {}
+        if previous.get('status') == 'approved' and previous.get('fingerprint') == current_fp:
+            return True
+        tasks = [{'id': task['id'], 'title': task['title'], 'status': state['tasks'][task['id']]['status'],
+                  'review': (state['tasks'][task['id']].get('review') or {}).get('status', ''),
+                  'files': task.get('files', [])} for task in state['plan']['tasks']]
+        files = self._review_files([item for task in state['plan']['tasks'] for item in task.get('files', [])],
+                                   budget=52000)
+        prompt = collaboration.final_review_prompt(state['plan'], tasks, state.get('acceptance_report') or {},
+                                                   files, creators)
+        results = self._run_reviews(prompt, reviewers, 'final')
+        approvals = [item for item in results if item.get('verdict') == 'approve']
+        rejections = [item for item in results if item.get('verdict') == 'reject']
+        minimum = max(1, int((self.policy or {}).get('review_min_approvals', 1) or 1))
+        if len(approvals) >= minimum and not rejections:
+            state['final_review'] = {'status': 'approved', 'results': results, 'at': time.time(),
+                                     'fingerprint': current_fp}
+            self.update('READY', 'Abschluss unabhängig geprüft (' +
+                        ', '.join(item['model'] for item in approvals) + ').')
+            return True
+        if rejections:
+            issues = []
+            for item in rejections:
+                issues.extend(item.get('issues') or item.get('reasons') or [])
+            detail = ('Abschlussprüfung (' + ', '.join(item['model'] for item in rejections) +
+                      ') hat Mängel festgestellt:\n- ' + '\n- '.join(dict.fromkeys(issues[:8])))
+            state['final_review'] = {'status': 'rejected', 'results': results, 'at': time.time(),
+                                     'fingerprint': current_fp}
+            state['final_review_rejections'] = int(state.get('final_review_rejections', 0)) + 1
+            failed = next((task for task in state['plan']['tasks']
+                           if state['tasks'][task['id']]['status'] != 'VERIFIED'), state['plan']['tasks'][0])
+            state['tasks'][failed['id']].update(status='RECHECK', error=detail)
+            state['verified_fingerprint'] = None
+            if state['final_review_rejections'] > 1:
+                self.question(failed['id'], detail, detail)
+            else:
+                self.update('READY', detail + ' Die betroffene Aufgabe wird erneut geprüft.')
+            return False
+        detail = ('Kein Prüfmodell lieferte ein gültiges Abschlussurteil: ' +
+                  json.dumps(results[-3:], ensure_ascii=False)[-2500:])
+        state['final_review'] = {'status': 'error', 'results': results, 'at': time.time(),
+                                 'fingerprint': current_fp}
+        if not (self.policy or {}).get('review_strict', True):
+            state['final_review']['status'] = 'skipped'
+            state['final_review']['reason'] = 'Kein gültiges Urteil; strenger Modus ist aus.'
+            self.update('READY', 'Abschlussprüfung technisch nicht möglich; strenger Modus ist aus.')
+            return True
+        self.question(state['plan']['tasks'][0]['id'],
+                      'Die unabhängige Abschlussprüfung konnte nicht durchgeführt werden. '
+                      'Prüfmodelle oder Quellen anpassen: ' + detail, detail)
+        return False
 
     def checks(self, tasks):
         evidence = []
@@ -684,8 +984,11 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                         if accepted.get('review_required') and not accepted.get('reviewed_at'):
                             self.update('REVIEW', 'Anwendungsabnahme bestanden; geänderte Tests gesondert prüfen und Lauf danach fortsetzen.')
                             return
+                    if not self.review_final(s):
+                        continue
                     s['verified_fingerprint'] = final_hash
-                    self.update('DONE', 'Alle Aufgaben, die abschließende Integrationsprüfung und die Anwendungsabnahme sind bestanden.'); return
+                    self.restore_adapter('Abschluss unabhängig geprüft; Hauptmodell wird wieder aktiv.')
+                    self.update('DONE', 'Alle Aufgaben, die abschließende Integrationsprüfung, die Anwendungsabnahme und die unabhängige Abschlussprüfung sind bestanden.'); return
                 candidates.sort(key=lambda t: (-int(t.get('priority', 0) or 0), not bool(s['tasks'][t['id']].get('answer')), len(t['depends_on'])))
                 task = candidates[0]; row = s['tasks'][task['id']]; s['current'] = task['id']
                 if row.get('question'):
@@ -693,8 +996,19 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                 if self.pause.is_set(): self.update('PAUSED', 'Nach abgeschlossenem Durchlauf pausiert.'); return
                 if s['session_used'] >= budget:
                     self.update('BUDGET', 'Freigegebenes Durchlaufbudget erreicht. Weiteres Budget erforderlich.'); return
-                if row['failures'] > task.get('max_repairs', 3):
+                handoff_next = bool((row.get('handoff') or {}).get('run_next'))
+                repair_limit = int(task.get('max_repairs', 3))
+                try:
+                    handoff_after = max(1, int(self.policy.get('handoff_after_failures', 2)))
+                except (TypeError, ValueError):
+                    handoff_after = 2
+                if row['failures'] >= min(repair_limit, handoff_after) and not handoff_next:
+                    if self.try_handoff(task, row, row['error'], 'REPAIR_LIMIT'):
+                        continue
+                if row['failures'] > repair_limit and not handoff_next:
                     self.question(task['id'], self.failure_question(task['id'], row['error']), row['error']); continue
+                if handoff_next:
+                    row['handoff']['run_next'] = False
                 regression = [task]
                 from .installations import InstallBlocked, diagnose
                 try:
@@ -720,14 +1034,22 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     passed, report = False, 'Teilauftrag noch nicht umgesetzt: ' + task['instruction']
                 if self.stop.is_set(): break
                 if passed:
+                    row.setdefault('creator', self.current_key())
+                    if not self.review_task(task, report):
+                        continue
                     mark_verified(self.store,task)
+                    self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                     s['verified_fingerprint'] = fingerprint(self.store.project)
                     self.update('READY', 'Bereits erfüllt und geprüft: ' + task['title']); continue
                 row['error'] = report
                 if self.auto_install(report):
                     passed, report = self.checks(regression)
                     if passed:
+                        row.setdefault('creator', self.current_key())
+                        if not self.review_task(task, report):
+                            continue
                         mark_verified(self.store,task)
+                        self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                         s['verified_fingerprint'] = fingerprint(self.store.project)
                         self.update('READY', 'Nach Installation geprüft: ' + task['title']); continue
                     row['error'] = report
@@ -756,6 +1078,8 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                         shutil.copy2(source, target)
                 atomic_json(run_dir / 'before_manifest.json', manifest)
                 before = fingerprint(self.store.project)
+                row['creator'] = self.current_key()
+                row['review'] = None
                 row['status'] = 'RUNNING'; row['attempts'] += 1; s['runs'] += 1; s['session_used'] += 1
                 self.update('RUNNING', 'Aider arbeitet: ' + task['title'])
                 try:
@@ -774,7 +1098,11 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                             row['status'] = 'OPEN'
                             self.update('READY', 'Kontextgrenze erkannt; Dateiumfang automatisch verkleinert und Plan versioniert.')
                             continue
+                        if self.try_handoff(task, row, str(exc), 'CONTEXT_LIMIT'):
+                            continue
                         self.question(task['id'], str(exc), str(exc)); continue
+                    if self.try_handoff(task, row, str(exc), 'MODEL_ERROR'):
+                        continue
                     raise
                 safe_result = dict(result)
                 key = getattr(self.adapter, 'key', '')
@@ -818,6 +1146,9 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                             self.update('READY', 'Benötigte Projektdateien automatisch ergänzt.'); continue
                         if self.auto_install(report + '\n' + message['question']):
                             row['status'] = 'OPEN'; self.update('READY', 'Abhängigkeit automatisch bereitgestellt.'); continue
+                        if message['outcome'] == 'blocked' and self.try_handoff(
+                                task, row, message['question'], 'MODEL_BLOCKED'):
+                            continue
                         evidence = diagnose(report + '\n' + message['question'], task['id'])
                         question = message['question'] if evidence['kind'] == 'code' else evidence['question']
                         if self.policy.get('web_search') and not row.get('research_attempted') and evidence['kind'] in ('code','missing_python','missing_npm'):
@@ -838,8 +1169,12 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     t in output for t in ('did not conform to the edit format', 'only 3 reflections allowed',
                                           'failed to apply edit', 'no filename provided')))
                 if passed and result['code'] == 0 and not result['reason'] and not format_error:
+                    row.setdefault('creator', self.current_key())
+                    if not self.review_task(task, report):
+                        continue
                     mark_verified(self.store,task)
                     row['failures']=0
+                    self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                     s['verified_fingerprint'] = fingerprint(self.store.project)
                     self.update('READY', 'Geprüft: ' + task['title'])
                 else:
@@ -854,9 +1189,13 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     row['stalls'] = row.get('stalls', 0) + 1 if stalled and row.get('error_sig') == error_sig else 0
                     row['error_sig'] = error_sig
                     if row['stalls'] >= 2:
+                        if self.try_handoff(task, row, row['error'], 'STALL'):
+                            continue
                         if self.recover(task, 'STALL', row['error']): continue
                         self.question(task['id'], self.failure_question(task['id'], row['error']), row['error']); continue
                     if row['failures'] > task.get('max_repairs', 3):
+                        if self.try_handoff(task, row, row['error'], 'REPAIR_LIMIT'):
+                            continue
                         self.question(task['id'], self.failure_question(task['id'], row['error']), row['error']); continue
                     self.update('READY', 'Fehler erkannt; nächster Durchlauf repariert gezielt.')
             self.update('INTERRUPTED', 'Gestoppt. Teilergebnisse bleiben erhalten; Fortsetzung prüft sie erneut.')
@@ -868,6 +1207,7 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
             self.log('\nCONTROLLER-FEHLER: ' + str(exc) + '\n')
             self.update('ERROR', str(exc))
         finally:
+            self.restore_adapter()
             if self.installer.records:
                 try: self.installer.summary()
                 except (OSError, UnicodeError) as exc: self.log('Installationsübersicht konnte nicht aktualisiert werden: ' + str(exc))

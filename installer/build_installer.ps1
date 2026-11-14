@@ -23,7 +23,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Version = '1.3',
+    [string]$Version = '1.4',
     [string]$Certificate = $env:TOOLFORGE_SIGN_CERT,
     [string]$CertificatePassword = $env:TOOLFORGE_SIGN_PASSWORD,
     [string]$TimestampUrl = 'http://timestamp.digicert.com',

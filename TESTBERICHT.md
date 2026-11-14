@@ -1,12 +1,98 @@
-# Testbericht ToolForge Pilot V1.3
+# Testbericht ToolForge Pilot V1.4
 
-> **Aktueller Bericht mit vollständiger Versionshistorie.** Dieser Bericht ersetzt die früheren Einzeldateien `TESTBERICHT_V01-06.md`, `TESTBERICHT_V07.md`, `TESTBERICHT_V08.md`, `TESTBERICHT_V10.md` und `TESTBERICHT_V11.md`. Die Abschnitte ab **Archiv V1.2** dokumentieren die damaligen Prüfstände unverändert als historische Nachweise.
+> **Aktueller Bericht mit vollständiger Versionshistorie.** Dieser Bericht ersetzt die früheren Einzeldateien `TESTBERICHT_V01-06.md`, `TESTBERICHT_V07.md`, `TESTBERICHT_V08.md`, `TESTBERICHT_V10.md` und `TESTBERICHT_V11.md`. Die Abschnitte ab **Archiv V1.3** dokumentieren die damaligen Prüfstände unverändert als historische Nachweise.
 
-## Aktueller Stand V1.3
+## Aktueller Stand V1.4
+
+Prüfdatum: 14.11.2026. Basis: ToolForge V1.3 einschließlich aller bisherigen Regressionen. Die Prüfung erfolgte mit der ausgelieferten Controller-Umgebung `.venv` und dem gebauten Frontend.
+
+### Automatisierte Tests
+
+```text
+.venv\Scripts\python.exe -m pytest -q tests backend/tests
+185 passed in 146.72s (0:02:26)
+```
+
+Der Lauf endete ohne Warnung. Die früher beobachtete Starlette-Deprecation im TestClient (`httpx` statt `httpx2`) blieb in diesem Durchlauf aus. Die Suite umfasst jetzt 185 Tests; neu für V1.4 sind:
+
+- `tests/test_v14.py` prüft qualifizierte Rollen-Schlüssel, das Entfernen von Duplikaten, die Ablehnung unerlaubter Quellen sowie den Review-Verdict-Parser.
+- `tests/test_v14.py::test_engine_hands_task_to_configured_model_and_restores_primary` prüft die sequenzielle Übergabe an das konfigurierte Modell, das Protokoll und die Wiederherstellung des Hauptadapters.
+- `tests/test_v14.py::test_independent_review_excludes_creator_and_gates_completion` und `test_review_rejection_triggers_repair_then_approval` prüfen den Ersteller-Ausschluss, das abschließende Projektgate und die Reparatur nach Ablehnung.
+- `backend/tests/test_api_v14.py` prüft Collaboration-Modelle und Laufzeitoptionen, die Validierung gegen den Live-Bestand, den optionalen Vorabcheck, die pinned Bridge und die Docker-Daemon-Vorprüfung.
+- `tests/test_v08.py::test_runtime_flags_apply_at_next_task_boundary` bleibt gültig: Recherche- und Diagnoseflags gelten weiterhin erst an der nächsten Aufgabengrenze, während Zusammenarbeitsrollen sofort übernommen werden.
+- `backend/tests/test_api.py` erwartet API-Version `1.4.0` und Workbench-Stage `14`.
+- Alle V1.3-, V1.2-, V1.1-, V1.0-, 0.8- und früheren Prüfungen bleiben in derselben Suite aktiv.
+
+### Frontend-Build
+
+```text
+npm run build
+toolforge-workbench@1.4.0
+tsc --noEmit
+vite build
+```
+
+Ergebnis: TypeScript-Prüfung und Produktionsbuild erfolgreich, 61 Module transformiert.
+
+| Datei | Größe | gzip |
+|---|---:|---:|
+| `index.html` | 0,52 kB | 0,34 kB |
+| CSS `index-BX8PojAs.css` | 36,62 kB | 8,13 kB |
+| Initiales JavaScript `index-DTer53tk.js` | **280,59 kB** | **87,96 kB** |
+| `PilotPanel` | 78,32 kB | 22,49 kB |
+| `AdvancedPanel` | 28,06 kB | 7,92 kB |
+| `DeveloperPanel` | 19,30 kB | 6,60 kB |
+| `ImprovementPanel` | 6,22 kB | 2,59 kB |
+| `HelpPanel` | 4,71 kB | 1,87 kB |
+| `ProjectManager` | 4,59 kB | 1,97 kB |
+| `CodeEditor` (CodeMirror, bedarfsgeladen) | 611,61 kB | 214,21 kB |
+| `LogoV7_OnlyLOGO.png` | 48,48 kB | – |
+| `LogoV6_textONLY.png` | 61,38 kB | – |
+
+Der initiale JavaScript-Block wächst durch die Lokalisierung und die neuen Rollen-Editoren von 261,66 kB auf 280,59 kB. Cockpit, Analyse, Entwicklungsbereich und Hilfe bleiben bedarfsgeladen; CodeMirror bleibt ein separater Block. Die einzige Chunk-Warnung betrifft weiterhin den bewusst verzögerten Editor und ist kein Buildfehler.
+
+### V1.4-Nachweise im Einzelnen
+
+| Punkt | Beleg | Grenze |
+|---|---|---|
+| Mehrmodell-Übergabe | `test_engine_hands_task_to_configured_model_and_restores_primary`, Collaboration-Tests | Kein realer Mehrstundenlauf mit drei oder mehr Modellen. |
+| Unabhängige Prüfung | Ersteller-Ausschluss, Mindestzustimmung, Ablehnungsreparatur und finales Gate per Engine-Test | Reale Prüfqualität und Modelltreue bleiben Zielhardware-Aufgabe. |
+| Rollen im Vorabcheck und Lauf | API-Tests für qualifizierte Schlüssel, Live-Validierung, Laufzeitoptionen; UI-Quellprüfung der beiden `RoleEditor` | Keine vollständige Browserabnahme aller Verschiebe- und Entfernen-Zustände. |
+| Optionaler Vorabcheck | API-Test `test_preflight_options_expose_role_picker_and_skip_flag`; `skip_preflight` in Einstellungen und Vorabcheck | Kein End-to-End-Lauf ohne Vorabcheck auf einem frischen Projekt. |
+| EN/DE-Oberfläche | TypeScript-Build, Quellprüfung aller Panels, gespeicherter `toolforge-language`-Schlüssel | Kein muttersprachliches Redaktionsreview aller Zeichenketten. |
+| Hilfe und Tutorials | Vier englische Dokumente unter `help/en/`, `/api/help?lang=en`, vier lokalisierte Touren | Tutorial-Schritte nicht automatisiert im Browser durchgeklickt. |
+| Docker-Build | `test_sandbox_status_distinguishes_cli_and_daemon`, `test_sandbox_build_rejects_unreachable_daemon_immediately`; synchrone HTTP-422-Antwort | Kein realer Image-Build, da der Linux-Daemon in der Testumgebung nicht erreichbar war. |
+| Version und Stage | API `1.4.0`, Workbench Stage `14`, Frontend-Paket `1.4.0`, Installer `1.4` | Signierter Installer nicht gebaut. |
+| Bisherige Funktionen | Vollständige Suite: **185 bestanden**, ohne Warnung in diesem Lauf | Reale Modell-, Docker-, Aider-, Tray- und Signaturläufe bleiben offen. |
+
+### Umgebung
+
+- Controller: Python 3.11.9, Windows 10, Node.js 26.13.0, npm 11.20.0.
+- Pakete: pytest 9.2.0, FastAPI 0.162.2, httpx 0.28.1, Uvicorn 0.54.0, Pydantic 2.14.3, Starlette 1.10.0.
+- Aider im separaten `.aider-venv`: 0.86.2, gepinnt über `requirements-aider.txt`.
+- Docker-CLI: 29.9.2; Docker Desktop Linux-Engine im Testzeitpunkt nicht erreichbar.
+- Browser: Chrome 157.0.8103.50; Headless-Screenshots und der V1.1-Browserlauf waren erfolgreich.
+- Installer: Inno Setup und Windows SDK/`signtool` fehlen; die Definition ist vorhanden, aber nicht als EXE gebaut.
+
+### Nicht als real getestet
+
+- GPU-/VRAM-Messung mit einem geladenen LM-Studio-Modell und reale Modellqualität.
+- Docker-Image-Build, Container-Paketinstallation und Netzwerkbetrieb mit laufendem Docker-Daemon.
+- Signierter Windows-Installer und eine vollständige Installations-/Deinstallationsrunde.
+- Tray-Symbol mit installiertem `pystray`/Pillow.
+- Aider-Ausführung gegen ein reales Modell.
+- Free-Modelllauf während eines offenen Tageskontingents; das Kontingent war zum Prüfzeitpunkt erschöpft.
+- Dauerhafter Browser-Reconnect der SSE-Kanäle über Stunden.
+
+Diese Punkte sind im Code vorbereitet und durch simulierte beziehungsweise Validierungstests abgesichert. Sie ersetzen keine Zielsystemabnahme.
+
+---
+
+# Archiv V1.3
 
 Prüfdatum: 13.11.2026. Basis: ToolForge V1.2 einschließlich aller bisherigen Regressionen. Die Prüfung erfolgte mit der ausgelieferten Controller-Umgebung `.venv` und dem gebauten Frontend.
 
-### Automatisierte Tests
+## Automatisierte Tests
 
 ```text
 .venv\Scripts\python.exe -m pytest -q

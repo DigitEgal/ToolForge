@@ -1,10 +1,25 @@
-# Anforderungsabgleich V1.3
+# Anforderungsabgleich V1.4
 
-Basis: ToolForge V1.2 einschließlich aller Regressionen aus 0.1 bis V1.2. Geprüft wurde der Code-, API- und UI-Stand. Reale GPU-, Docker-, Aider-, OpenCode-, Tray- und Signaturprüfungen bleiben im Testbericht gesondert abgegrenzt; die automatisierten Tests verwenden dafür isolierte Projekte und simulierte Schnittstellen.
+Basis: ToolForge V1.3 einschließlich aller Regressionen aus 0.1 bis V1.3. Geprüft wurde der Code-, API- und UI-Stand. Reale GPU-, Docker-, Aider-, OpenCode-, Tray- und Signaturprüfungen bleiben im Testbericht gesondert abgegrenzt; die automatisierten Tests verwenden dafür isolierte Projekte und simulierte Schnittstellen.
 
 Historische Abgleiche: [0.8](docs/archiv/ABNAHME_V08.md) · [V1.0](docs/archiv/ABNAHME_V10.md) · [V1.1](docs/archiv/ABNAHME_V11.md)
 
-## V1.3-Pflichtpunkte
+## V1.4-Pflichtpunkte
+
+| ID | Anforderung | Umsetzung | Beleg |
+|---|---|---|---|
+| V14-1 | Steckengebliebene Aufgaben an weitere Modelle übergeben | `Engine` erkennt wiederholte Fehlversuche, Hänger, Kontextlimits und blockiert zurückgelassene Aufgaben. Die geordnete `handoff_models`-Liste wird sequenziell versucht; der aktive Adapter wird für den Versuch getauscht und nach Erfolg wiederhergestellt. Jeder Versuch wird pro Aufgabe protokolliert. | `tests/test_v14.py`, `toolforge_pilot/core.py`, `toolforge_pilot/collaboration.py`, Quellprüfung. |
+| V14-2 | Ergebnisse durch andere Modelle unabhängig prüfen | Nach bestandener Aufgabenprüfung und als abschließendes Projektgate bewerten ein oder mehrere Prüfer das Ergebnis. Ersteller einer Aufgabe und aktives Hauptmodell sind ausgeschlossen. Mindestzustimmungen, strenge Ablehnung und Reparatur nach Ablehnung sind konfigurierbar. | `tests/test_v14.py::test_independent_review_excludes_creator_and_gates_completion`, `tests/test_v14.py::test_review_rejection_triggers_repair_then_approval`, Quellprüfung. |
+| V14-3 | Übergabe- und Prüferauswahl im Vorabcheck und zur Laufzeit konfigurierbar | `PreflightPanel` und `CollaborationPanel` bieten je einen `RoleEditor` mit Hinzufügen, Entfernen und Verschieben. Rollen werden als `Quelle::Modell` gespeichert, gegen den aktuellen Modellbestand validiert und über `POST /settings` sowie `/runtime/options` auch während eines Laufs übernommen. | `backend/tests/test_api_v14.py::test_collaboration_roles_use_qualified_keys_and_runtime_updates`, `backend/tests/test_api_v14.py::test_preflight_validates_role_models_against_live_inventory`, UI-Quellprüfung. |
+| V14-4 | Modelle für den Vorabcheck auswählbar und Vorabcheck überspringbar | Kandidaten und Auswertungsmodell bleiben einzeln wählbar; `skip_preflight` erlaubt Planung und Start ohne bestätigten Vergleich. Ein späterer Vorabcheck bleibt möglich, Empfehlungen werden weiterhin nur nach Übernahme aktiv. | `backend/tests/test_api_v14.py::test_preflight_options_expose_role_picker_and_skip_flag`, Quellprüfung. |
+| V14-5 | Oberfläche per EN\|DE-Umschalter vollständig übersetzen | `I18nProvider`/`useI18n`/`tr` übersetzen App, Cockpit, Vorabcheck, Modellquellen, Analyse, Entwicklung, Hilfe und Tutorials. Der Umschalter steht neben Ton und Design; die Auswahl liegt unter `localStorage`-Schlüssel `toolforge-language`. | `npm run build`, Quellprüfung, Screenshot-Prüfung. |
+| V14-6 | README und Schnellstart zweisprachig mit Sprachlinks | `README.md` und `README.en.md` verlinken einander am Anfang; `SCHNELLSTART.txt` und `SCHNELLSTART.en.txt` ebenso. Beide READMEs führen V1.4, Funktionen, Installation, Sicherheit, Grenzen und Versionsgeschichte. | Quellprüfung der Dateien. |
+| V14-7 | Hilfe, Tutorials und nutzernahe Dokumente in beiden Sprachen | `help/en/` enthält vier englische Dokumente; `/api/help?lang=` und der Hilfechat liefern die gewählte Sprache. Vier Tutorials (`main`, `pilot`, `collaboration`, `developer`) decken UI, Cockpit, Übergabe & Prüfung sowie Entwicklung ab und sind vollständig lokalisiert. | `backend/assistance.py`, `frontend/src/Tutorial.tsx`, Quellprüfung. |
+| V14-8 | Docker-Build-/Update-Fehler „Auftrag: failed“ beheben | `sandbox_status` prüft Docker-CLI und Linux-Daemon, `require_daemon` bricht Build-, Netzwerk- und Paketaufträge synchron mit HTTP 422 und klarer Meldung ab. Statusfelder und Frontend-Polling zeigen Daemon-Fehler sofort; ein fehlender Daemon führt nicht mehr zu einem hängenden Hintergrundauftrag. | `backend/tests/test_api_v14.py::test_sandbox_build_rejects_unreachable_daemon_immediately`, `backend/tests/test_api_v14.py::test_sandbox_status_distinguishes_cli_and_daemon`, Quellprüfung. |
+| V14-9 | Version im gesamten Projekt auf V1.4 anheben | FastAPI und `/api/workbench` melden `1.4.0`, die Workbench-Stage ist `14`. Frontend-Paket und Lockfile tragen `1.4.0`; Sidebar, Roadmap, Startbanner, Setup-Ausgabe, Hilfe, Installer, Buildskript und Dokumentation nennen V1.4 beziehungsweise vierzehn Etappen. | API-Test, Quellprüfung, `npm run build`. |
+| V14-10 | Alle bisherigen Funktionen weiter prüfen | Die vollständige V1.3-Suite bleibt erhalten; hinzugekommen sind Tests für Handoff-Reihenfolge, Ersteller-Ausschluss, Ablehnungsreparatur, Rollenvalidierung, übersprungenen Vorabcheck, Collaboration-API und Docker-Daemon-Prüfung. | [TESTBERICHT.md](TESTBERICHT.md), vollständiger Testlauf. |
+
+## V1.3-Pflichtpunkte (Funktionsbasis)
 
 | ID | Anforderung | Umsetzung | Beleg |
 |---|---|---|---|
@@ -32,23 +47,24 @@ Historische Abgleiche: [0.8](docs/archiv/ABNAHME_V08.md) · [V1.0](docs/archiv/A
 - Tool-Logo: `LogoV7_OnlyLOGO.png` (1815 × 1815, transparent) in Sidebar, Shutdown-Karte und Tutorial-Willkommen.
 - Wortmarke: `LogoV6_textONLY.png` (2657 × 748, transparent) mit Größenverhältnis 3,55 : 1; keine Verzerrung durch feste Breite.
 - Der Link „by DigitEgal“ bleibt ein einzelner, extern geöffneter Link ohne zusätzliches SVG-„D“.
-- API: `1.3.0`; Workbench: Stage `13`; Frontend: `1.3.0`; Installer-Definition: `1.3`.
-- Die dreizehnte Etappe heißt **OpenCode Free & kleine Modelle** und beschreibt kostenlose Modelle, Modellquellen-Presets, gemeinsames Free-Kontingent und kompaktere Prompts.
+- API: `1.4.0`; Workbench: Stage `14`; Frontend: `1.4.0`; Installer-Definition: `1.4`.
+- Die vierzehnte Etappe heißt **Übergabe & unabhängige Prüfung** und beschreibt Mehrmodell-Übergabe, Ersteller-Ausschluss, Prüferlisten, optionalen Vorabcheck, EN/DE-Oberfläche und den diagnostizierten Docker-Build.
+- Die dreizehnte Etappe bleibt als Funktionsbasis dokumentiert: **OpenCode Free & kleine Modelle**.
 
-## Teständerungen gegenüber V1.2
+## Teständerungen gegenüber V1.3
 
-- `backend/tests/test_api.py` erwartet API-Version `1.3.0` und Workbench-Stage `13`; `test_open_pilot_and_opencode_console_routes` prüft „Pilot öffnen“ und die OpenCode-Konsole.
-- `backend/tests/test_api.py` und `backend/tests/test_api_v11.py` decken die Quellenplanung und die unveränderten API-Funktionen ab.
-- `tests/test_opencode.py` prüft Katalogfilter, Erlaubnisliste, gemeinsames Tageslimit ohne Free-Modellwechsel, Fehler ohne Fallback, Studio-Fassade, OpenAI-Brücke und Dienstdatei.
-- `tests/test_routing.py` prüft Quellen-Reihenfolgen, Präfixe, Quota-Sperre, API-Modell-Fallback, Preset-Validierung und Quota-Ausweichpfade.
-- `tests/test_preflight.py::test_session_can_rerun_preflight_from_stored_candidates` prüft den erneuten Vorabcheck mit gespeicherten Kandidaten und Auswertungsmodell.
-- Die bisherigen V1.2-Tests für Index, Plan-Diff, Graph, Anwendungsabnahme, Benchmarks, Recherche, Umgebungen, Export/Import, Logrotation, SSE, Sandbox und Asset-Cache bleiben aktiv.
+- Neu: `tests/test_v14.py` prüft Handoff-Reihenfolge und Modellwechsel, Ersteller-Ausschluss, Ablehnungsreparatur, Rollenbereinigung und das abschließende Prüfgate.
+- Neu: `backend/tests/test_api_v14.py` prüft Collaboration-Modelle und -Einstellungen, Vorabcheck-Rollen samt Live-Validierung, übersprungenen Vorabcheck, Docker-Daemon-Pflicht und Daemon-Status.
+- `backend/tests/test_api.py` erwartet API-Version `1.4.0` und Workbench-Stage `14`.
+- `tests/test_v08.py` prüft weiterhin die Hilfedokumente; `help/en/` wird über `help_documents('en')` abgedeckt.
+- Die bisherigen V1.3-Tests für OpenCode, Routing, Quell-Presets, gemeinsames Quota, kleinen Modus und wiederholten Vorabcheck bleiben aktiv.
 - `npm run build` prüft weiterhin TypeScript und den Produktionsbuild; die einzige große Chunk-Warnung betrifft den bewusst verzögert geladenen CodeMirror-Editor.
 
 ## Prüfgrenzen
 
-- Die automatisierten Tests simulieren LM-Studio-, Docker- und Modellantworten. Reale Modellqualität, VRAM-Werte, Tokens/s und Quantisierungen müssen auf der Zielhardware gemessen werden. Die OpenCode-Tests verwenden Fakes; ein realer Free-Lauf ist vom Tageslimit abhängig.
-- Ein echter Docker-Build, ein realer Aider-Lauf und ein signierter Installer wurden in dieser Umgebung nicht ausgeführt. Der Installer ist vorbereitet; ohne Zertifikat bleibt er unsigniert.
+- Die automatisierten Tests simulieren LM-Studio-, Docker-, OpenCode- und Modellantworten. Reale Modellqualität, VRAM-Werte, Tokens/s und Quantisierungen müssen auf der Zielhardware gemessen werden. Die OpenCode-Tests verwenden Fakes; ein realer Free-Lauf ist vom Tageslimit abhängig.
+- Ein echter Docker-Build, ein realer Aider-Lauf und ein signierter Installer wurden in dieser Umgebung nicht ausgeführt. Die Docker-Daemon-Prüfung ist mit simulierten Statusantworten abgedeckt; Docker Desktop lief in der Testumgebung nicht. Der Installer ist vorbereitet; ohne Zertifikat bleibt er unsigniert.
 - Die Browser-Abnahme nutzt einen installierten Chrome/Edge im Headless-Modus. Ohne Browser schlägt ein deklariertes Browser-Szenario nachvollziehbar fehl.
 - Tray und Browser-App-Fenster werden nur gestartet, wenn die jeweiligen optionalen Komponenten beziehungsweise Browser vorhanden sind.
 - Ein visueller Screenshot ersetzt keine vollständige Bedienabnahme aller Tutorial-Schritte auf jedem Zielsystem.
+- Die EN/DE-Übersetzung ist quellgeprüft und gebaut, aber nicht mit muttersprachlichem Review aller Zeichenketten abgenommen.

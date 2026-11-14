@@ -29,6 +29,11 @@ dialog{width:min(570px,calc(100vw - 32px));border:1px solid var(--line);backgrou
 
 /* Audio-Einstellungen im Kopfbereich: Symbol neben dem Designwechsel, Regler erst beim Ueberfahren */
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
+.language-switch { display: inline-flex; align-items: center; gap: 3px; height: 38px; padding: 0 4px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .4px; }
+.language-switch span { opacity: .45; }
+.language-switch button { border: 0; background: transparent; color: var(--muted); padding: 6px 5px; border-radius: 6px; font-size: 10px; font-weight: 650; }
+.language-switch button:hover { color: var(--text); background: var(--panel2); }
+.language-switch button.active { color: var(--accent); background: var(--accent-soft); }
 .audio-control { position: relative; }
 .audio-popover { position: absolute; right: 0; top: 100%; padding-top: 8px; z-index: 30; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .16s, transform .16s, visibility .16s; pointer-events: none; }
 .audio-control:hover .audio-popover, .audio-control:focus-within .audio-popover { opacity: 1; visibility: visible; transform: none; pointer-events: auto; }

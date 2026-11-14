@@ -16,6 +16,32 @@ DEFAULT_MEMORY = '4g'
 DEFAULT_CPUS = 2
 DEFAULT_PIDS = 256
 MAX_PORTS = 8
+DAEMON_HINT = ('Docker-Daemon nicht erreichbar. Docker Desktop starten und „Linux-Container“ '
+               'aktivieren; auf Windows muss die Pipe dockerDesktopLinuxEngine bereitstehen. '
+               'Danach Status aktualisieren.')
+
+
+def daemon_status(docker=None) -> dict:
+    """Check the engine, not just the CLI. A missing daemon is the common build failure."""
+    docker = docker or shutil.which('docker')
+    if not docker:
+        return {'available': False, 'version': '', 'error': 'Docker-CLI nicht gefunden. Docker Desktop installieren.'}
+    try:
+        result = subprocess.run([docker, 'info', '--format', '{{.ServerVersion}}'],
+                                capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {'available': False, 'version': '', 'error': DAEMON_HINT + ' Technischer Befund: ' + str(exc)[-600:]}
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()[-1000:]
+        return {'available': False, 'version': '', 'error': DAEMON_HINT + (' Befund: ' + detail if detail else '')}
+    return {'available': True, 'version': (result.stdout or '').strip(), 'error': ''}
+
+
+def require_daemon(docker=None) -> dict:
+    state = daemon_status(docker)
+    if not state['available']:
+        raise ValueError(state['error'])
+    return state
 
 
 def project_tag(root):
@@ -133,6 +159,7 @@ def build(root, python, stop, log, settings):
     docker = shutil.which('docker')
     if not docker:
         raise ValueError('Docker ist nicht installiert.')
+    require_daemon(docker)
     folder = contained(root, '.toolforge/docker'); folder.mkdir(parents=True, exist_ok=True)
     if not (folder / 'Dockerfile').exists():
         (folder / 'Dockerfile').write_text('FROM python:3.12-slim\nRUN pip install --no-cache-dir pytest ruff mypy\nWORKDIR /workspace\n', encoding='utf-8')
@@ -150,6 +177,7 @@ def ensure_network(root, name, stop, log):
     docker = shutil.which('docker')
     if not docker:
         raise ValueError('Docker ist nicht installiert.')
+    require_daemon(docker)
     network = 'toolforge-' + name
     exists = subprocess.run([docker, 'network', 'inspect', network], capture_output=True, timeout=20)
     if exists.returncode:
@@ -180,9 +208,14 @@ def write_docker_lock(root, docker=None) -> dict:
 
 def status(root, settings=None) -> dict:
     docker = shutil.which('docker')
-    result = {'docker_available': bool(docker), 'tag': image_tag(root), 'network': None,
+    daemon = daemon_status(docker)
+    result = {'docker_cli': bool(docker), 'docker_available': bool(daemon['available']),
+              'daemon_available': bool(daemon['available']),
+              'daemon_version': daemon.get('version', ''),
+              'daemon_error': daemon.get('error', ''),
+              'tag': image_tag(root), 'network': None,
               'image': None, 'networks': [], 'settings': settings or {}}
-    if not docker:
+    if not daemon['available']:
         return result
     try:
         inspect = subprocess.run([docker, 'image', 'inspect', image_tag(root), '--format',
@@ -208,6 +241,7 @@ def remove_image(root, stop, log) -> dict:
     docker = shutil.which('docker')
     if not docker:
         raise ValueError('Docker ist nicht installiert.')
+    require_daemon(docker)
     return run_process([docker, 'image', 'rm', image_tag(root)], root, 120, stop, log)
 
 
@@ -216,6 +250,7 @@ def remove_network(root, name, stop, log) -> dict:
     docker = shutil.which('docker')
     if not docker:
         raise ValueError('Docker ist nicht installiert.')
+    require_daemon(docker)
     return run_process([docker, 'network', 'rm', 'toolforge-' + name], root, 60, stop, log)
 
 
@@ -227,6 +262,7 @@ def install_package(root, manager: str, name: str, version: str, stop, log) -> d
     docker = shutil.which('docker')
     if not docker:
         raise ValueError('Docker ist nicht installiert.')
+    require_daemon(docker)
     folder = Path(root) / '.toolforge' / 'docker-packages' / uuid.uuid4().hex
     folder.mkdir(parents=True, exist_ok=True)
     if manager == 'pip':

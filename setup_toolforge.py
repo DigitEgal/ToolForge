@@ -70,6 +70,6 @@ def main():
     AiderAdapter(str(python_at(aider)),'http://localhost:1234/v1','lm-studio','setup-probe').probe()
     provider=opencode_setup()
     (ROOT/'setup-runtime.json').write_text(json.dumps({'aider_python':str(python_at(aider)),'opencode':provider},indent=2),encoding='utf-8')
-    print('ToolForge Pilot V1.3: Einrichtung und Aider-Prüfung abgeschlossen. Jetzt Start_ToolForge.cmd öffnen.')
+    print('ToolForge Pilot V1.4: Einrichtung und Aider-Prüfung abgeschlossen. Jetzt Start_ToolForge.cmd öffnen.')
     print('LM Studio oder OpenCode Free unter Einstellungen als Modellquelle wählen.')
 if __name__=='__main__':main()

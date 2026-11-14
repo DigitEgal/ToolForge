@@ -1,0 +1,25 @@
+ToolForge Pilot V1.4
+German quickstart: SCHNELLSTART.txt
+
+1. Stop the previous server and unpack the ZIP into a new program folder.
+2. Run Setup_ToolForge.cmd (Python 3.11+, internet required).
+3. Start_ToolForge.cmd opens the web workbench in the browser.
+4. On first start, follow the UI tutorial; further tutorials for the cockpit, handoff & review and the development area are available under Help.
+5. Open a project and connect a working folder outside the program folder.
+6. Under Settings -> Model sources choose a preset (e.g. Free & local), pick the order and load a model per source. Click OpenCode status or console only when needed.
+7. Free models share one daily limit; another free model name is not additional quota. When exhausted, use only local/API if the preset allows it.
+8. Task plan -> Goal -> Model preflight -> Apply recommendation -> Plan -> Start. The preflight is optional and can be skipped via “Skip preflight”.
+9. Alternatively use the one-click flow “Automatic: preflight → recommendation → plan → start”. After errors, “Run preflight again” stays visible.
+10. Handoff & review: define ordered handoff models for stuck tasks and independent reviewers; both lists apply from the next task and can also be changed during a run.
+11. Extend existing tools via Development area -> Improvements.
+12. Under Analysis & operations use index, task graph, benchmark, application acceptance, research, export/import, log rotation and sandbox. Docker builds start only with a reachable Linux daemon and report missing daemons immediately.
+13. Before larger plan changes, review the diff preview; explicitly confirm changes to already verified parts.
+
+Project groups and the tile/list view organise larger project collections.
+Language: EN | DE next to sound and theme translates the interface and help; the choice is stored in the browser.
+
+Quit: “Quit ToolForge” button or Stop_ToolForge.cmd.
+Uninstall: Deinstallieren_ToolForge.cmd (your own project folders remain).
+Optional: tray via requirements-tray.txt; Windows installer under installer/.
+Startup problem: Start_ToolForge_Debug.cmd and runtime/startup.log.
+Documentation: Help in the UI, README.md, README.en.md, ABNAHME.md, TESTBERICHT.md.

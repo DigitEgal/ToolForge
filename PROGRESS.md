@@ -1,24 +1,34 @@
-# Projektstand V1.3
+# Projektstand V1.4
 
-ToolForge Pilot V1.3 ist der aktuelle Funktionsstand. V1.3 ergänzt kostenlose OpenCode-Modelle ohne Zusatzkonto, klar wählbare Modellquellen-Presets statt riskanter Free-Modellwechsel, mehr Zuverlässigkeit für kleine Modelle sowie einen reparierten Desktop-Pilot und einen wiederholbaren Vorabcheck; alle Funktionen aus V1.2 bleiben erhalten. Die vollständige Suite umfasst **174 automatisierte Tests** und lief mit einer bekannten Starlette-TestClient-Warnung ohne Fehlschlag.
+ToolForge Pilot V1.4 ist der aktuelle Funktionsstand. V1.4 ergänzt die Mehrmodell-Übergabe für steckengebliebene Aufgaben, eine unabhängige Ergebnisprüfung durch andere Modelle, im Vorabcheck und zur Laufzeit konfigurierbare Rollen, einen optionalen Vorabcheck, eine vollständige EN/DE-Oberfläche samt Hilfe und Tutorials sowie einen diagnostizierten Docker-Build; alle Funktionen aus V1.3 bleiben erhalten.
 
-Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als dreizehnte Etappe eingeordnet.
+Der vollständige Abgleich steht in [ABNAHME.md](ABNAHME.md); Testumfang, Umgebung und Grenzen in [TESTBERICHT.md](TESTBERICHT.md). Die Umsetzung ist im [Entwicklungspfad](TOOLFORGE_ROADMAP.md) als vierzehnte Etappe eingeordnet.
 
-## V1.3-Schwerpunkte
+## V1.4-Schwerpunkte
+
+- Geordnete Übergabeliste `Quelle::Modell`: Das Hauptmodell wird bei wiederholten Fehlversuchen, Hängern, Kontextlimits oder blockierten Aufgaben sequenziell durch die konfigurierten Modelle ersetzt und nach Erfolg wiederhergestellt.
+- Unabhängige Ergebnisprüfung nach bestandener Aufgabenprüfung und als abschließendes Projektgate; Ersteller einer Aufgabe und aktives Hauptmodell sind ausgeschlossen.
+- Mindestzustimmungen, strenge Ablehnung und Reparatur nach Ablehnung sind einstellbar. Prüfer erhalten genau das konfigurierte Modell ohne stillen Ersatz.
+- Übergabe- und Prüferlisten sind im Vorabcheck und unter „Übergabe & Prüfung“ auch während eines Laufs änderbar; die Auswahl wird gegen den aktuellen Modellbestand geprüft.
+- Vorabcheck ist optional und über „Vorabcheck überspringen“ abschaltbar; Empfehlungen werden weiterhin nur nach ausdrücklicher Übernahme aktiv.
+- Vollständige EN/DE-Oberfläche über `EN | DE` neben Ton und Design, inklusive Hilfe, vier Tutorials, README und Schnellstart; die Auswahl bleibt im Browser gespeichert.
+- Docker-Build prüft vor Build-, Netzwerk- und Paketaufträgen die Docker-CLI und den Linux-Daemon und meldet fehlende Daemons sofort statt eines hängenden „Auftrag: failed“.
+- API `1.4.0`, Workbench-Stage `14`, Frontend `1.4.0`, Installer `1.4`.
+
+## Funktionsbasis aus V1.3
 
 - OpenCode Free als Modellquelle: lokaler Dienst, keine zusätzlichen Zugangsdaten, Nutzung für Vorabcheck, Planung, Hilfe und Aider-Brücke; Konsole und Status nur auf Klick.
 - Sechs Modellquellen-Presets (Nur Lokal, Nur Free, Nur API, Free & Lokal, Lokal & API, Free & API) mit den Reihenfolgen MAX Quality, Preis/Leistung und Kostensparend; pro Quelle ein eigenes Modellfeld.
 - Alle Free-Modelle teilen sich das Tageskontingent. Ein Modellname wechselt kein Kontingent; bei Erschöpfung wird nur auf erlaubte lokale oder bezahlte API-Quellen ausgewichen.
 - Kleine Modelle: kompaktere Projektübersicht, ganze Dateien statt riskanter Diffs, Top-p-Steuerung, strengere Formatprüfung und Syntaxfehler mit Zeilenausschnitten.
 - „Pilot öffnen“ startet das Desktop-Fenster tatsächlich; Fehlstarts nennen das Startprotokoll.
-- Vorabcheck bleibt nach Fehlern sichtbar und lässt sich mit gespeicherten Kandidaten erneut ausführen; geänderte Aufgabe oder Quellen-Vorauswahl werden markiert, übersprungene Kandidaten und gemessene Ausweichquellen angezeigt.
-- API `1.3.0`, Workbench-Stage `13`, Frontend `1.3.0`, Installer `1.3`.
+- Vorabcheck bleibt nach Fehlern sichtbar und lässt sich mit gespeicherten Kandidaten erneut ausführen.
 
 ## Funktionsbasis aus V1.2
 
 - V7-Logo und V6-DigitEgal-Wortmarke in Sidebar, Abschlussbildschirm und Tutorial.
 - Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden erst bei Bedarf geladen.
-- Initialer JavaScript-Block rund 261 kB; CodeMirror bleibt ein separater Block.
+- Initialer JavaScript-Block rund 261 kB in V1.3, durch V1.4 auf rund 280 kB gewachsen; CodeMirror bleibt ein separater Block.
 - Gehashte Vite-Assets sind langfristig cachebar; `index.html` bleibt `no-cache`.
 - Konsolidierter Testbericht und archivierte historische Anforderungsabgleiche.
 

@@ -1,4 +1,4 @@
-# Entwicklungspfad — Stand V1.3
+# Entwicklungspfad — Stand V1.4
 
 01 Projektverwaltung und Pilot: integriert.
 02 Entwicklungsbereich: Dateiliste nach Ordnerpfaden, CodeMirror-Editor, konfliktgeprüftes Speichern und Sicherungen.
@@ -13,6 +13,17 @@
 11 Analyse & Betrieb: inkrementeller Index, empirische Messreihen, Plan-Vorschau, Anwendungsabnahme, Aufgaben-Graph, Recherchebelege, Presets, Export/Import, Logrotation, Tray und Installer.
 12 Marke & Performance: V7-Tool-Logo, V6-DigitEgal-Wortmarke, konsolidierte Berichte und verzögertes Laden großer Oberflächenbereiche.
 13 OpenCode Free & kleine Modelle: kostenlose Modelle ohne Zusatzkonto, Modellquellen-Presets statt Free-Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, kompaktere Prompts, ganze Dateien, Top-p und Syntaxprüfung.
+14 Übergabe & unabhängige Prüfung: geordnete Mehrmodell-Übergabe bei steckengebliebenen Aufgaben, unabhängige Ergebnisprüfung ohne Ersteller-Bias, Rollen im Vorabcheck und zur Laufzeit konfigurierbar, optionaler Vorabcheck, vollständige EN/DE-Oberfläche und vier Tutorials.
+
+## V1.4-Schwerpunkte
+
+- Mehrmodell-Übergabe: Eine geordnete Liste aus `Quelle::Modell` wird bei wiederholten Fehlversuchen, Hängern, Kontextlimits oder blockierten Aufgaben sequenziell versucht; nach Erfolg wird das Hauptmodell wiederhergestellt.
+- Unabhängige Ergebnisprüfung: Ein oder mehrere andere Modelle bewerten bestandene Aufgaben und den Projektabschluss. Ersteller einer Aufgabe und aktives Hauptmodell sind ausgeschlossen; Mindestzustimmungen und strenge Reparatur sind einstellbar.
+- Rollen im Vorabcheck und unter „Übergabe & Prüfung“ konfigurierbar; Änderungen gelten ab dem nächsten Auftrag und sind auch während eines Laufs möglich. Die gespeicherte Reihenfolge übersteht einen Wechsel der Quellen-Vorauswahl.
+- Optionaler Vorabcheck über „Vorabcheck überspringen“; Empfehlungen werden weiterhin nur nach ausdrücklicher Übernahme aktiv.
+- Vollständige EN/DE-Oberfläche samt Hilfe, vier Tutorials (UI, Cockpit, Übergabe & Prüfung, Entwicklungsbereich), zweisprachigem README und Schnellstart.
+- Docker-Build prüft Docker-CLI und Linux-Daemon vor Build-, Netzwerk- und Paketaufträgen und meldet fehlende Daemons sofort.
+- Versionsstand durchgängig V1.4 beziehungsweise `1.4.0`, Workbench-Stage `14`.
 
 ## V1.3-Schwerpunkte
 

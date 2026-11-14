@@ -6,6 +6,9 @@ export type Settings = {
   allow_npm: boolean; simulation: boolean; provider: string; opencode_fallback: boolean; opencode_order: string[];
   small_model_mode: boolean; source_mode: string; preference: string; local_model: string; free_model: string;
   api_model: string; api_base: string; api_key?: string; remote_api_key?: string;
+  handoff_enabled: boolean; handoff_models: string[]; handoff_after_failures: number;
+  review_enabled: boolean; review_models: string[]; review_min_approvals: number; review_strict: boolean;
+  skip_preflight: boolean;
 };
 
 export type Task = { id: string; title: string; instruction: string; acceptance: string[]; files: string[]; depends_on: string[]; priority?: number };
@@ -14,7 +17,7 @@ export type State = {
   blocked_tasks?: { id: string; dependencies: string[]; file_conflicts: string[]; approval_missing?: string[] }[];
   status: string; message: string; runs: number; session_used: number; current: string | null; plan_file?: string;
   plan: { version: number; goal: string; tasks: Task[]; acceptance_scenarios?: Record<string, unknown>[]; replanning?: { version: number; reason: string; task: string; children: string[] }[] };
-  tasks: Record<string, { status: string; attempts: number; error: string; question: string | null; question_id?: string; ever_verified?: boolean; invalidation_reason?: string }>;
+  tasks: Record<string, { status: string; attempts: number; error: string; question: string | null; question_id?: string; ever_verified?: boolean; invalidation_reason?: string; creator?: string; review?: { status?: string; verdict?: string; approvals?: number } | null }>;
   installations?: { manager: string; name: string; version: string; success: boolean; at: string }[];
 };
 
@@ -52,6 +55,8 @@ export type Preflight = {
     reason: string; source?: string; score?: number } | null;
   verdict?: { scores: Record<string, number>; winner?: string; reason?: string };
   samples: PreflightSample[]; base?: string; provider?: string; source_mode?: string; preference?: string;
+  roles?: { handoff_models?: string[]; review_models?: string[] };
+  handoff_models?: string[]; review_models?: string[]; role_settings?: Record<string, unknown>;
   sources?: string[]; source_prefix?: boolean; skipped_sources?: string[]; alternatives?: PreflightAlternative[];
   accepted_settings?: { provider?: string; source?: string; model?: string; temperature?: number;
     context_tokens?: number; output_tokens?: number };

@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
 from backend.pilot_service import PilotService
 from toolforge_pilot.core import project_path
-from toolforge_pilot import opencode
+from toolforge_pilot import opencode, routing
 DEFAULT_DB = Path(__file__).resolve().parent / 'data' / 'toolforge.db'
 ALLOWED_ORIGINS = {'http://127.0.0.1:8000', 'http://localhost:8000', 'http://127.0.0.1:5173', 'http://localhost:5173'}
 
@@ -218,7 +218,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
         database.initialize()
         yield
         pilot.close()
-    app = FastAPI(title='ToolForge · lokale Workbench', version='1.3.0', lifespan=lifespan)
+    app = FastAPI(title='ToolForge · lokale Workbench', version='1.4.0', lifespan=lifespan)
     app.state.database = database
     app.state.pilot = pilot
     app.state.shutdown = None
@@ -533,9 +533,9 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     def pilot_sandbox_package(ident: str, data: dict): return session_for(ident).sandbox_package(data)
 
     @app.get('/api/help')
-    def help_docs():
+    def help_docs(lang: str = 'de'):
         from backend.assistance import help_documents
-        return help_documents()
+        return help_documents(lang)
 
     @app.post('/api/projects/{ident}/pilot/assistant/options')
     def assistant_options(ident: str):return session_for(ident).assistant_options()
@@ -556,6 +556,10 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     def pilot_models(ident: str, data: dict | None = None):
         return session_for(ident).models(str((data or {}).get('source') or '') or None)
 
+    @app.get('/api/projects/{ident}/pilot/collaboration/models')
+    def pilot_collaboration_models(ident: str):
+        return session_for(ident).collaboration_models()
+
     @app.post('/api/projects/{ident}/pilot/opencode/status')
     def pilot_opencode_status(ident: str, data: dict | None = None):
         return session_for(ident).opencode_status(data or {})
@@ -575,6 +579,34 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
             raise HTTPException(422, str(exc)) from exc
         except opencode.OpenCodeError as exc:
             raise HTTPException(502, str(exc)) from exc
+
+    @app.get('/api/projects/{ident}/opencode/v1/source/{source}/models')
+    def opencode_bridge_pinned_models(ident: str, source: str):
+        session = session_for(ident)
+        if source not in routing.SOURCE_LABELS:
+            raise HTTPException(404, 'Unbekannte Modellquelle.')
+        try:
+            rows = session.models(source)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {'object': 'list', 'data': [
+            {'id': row['id'], 'object': 'model', 'created': 0,
+             'owned_by': routing.source_provider(source), 'x_toolforge_source': source}
+            for row in rows if row.get('type') != 'embedding']}
+
+    @app.post('/api/projects/{ident}/opencode/v1/source/{source}/chat/completions')
+    def opencode_bridge_pinned_chat(ident: str, source: str, payload: dict):
+        if source not in routing.SOURCE_LABELS:
+            raise HTTPException(404, 'Unbekannte Modellquelle.')
+        try:
+            return session_for(ident).bridge_chat(payload, source=source)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        except opencode.OpenCodeError as exc:
+            headers = {}
+            if exc.retry_after_ms and exc.retry_after_ms > 0:
+                headers['Retry-After'] = str(max(1, int(round(exc.retry_after_ms / 1000))))
+            raise HTTPException(exc.status or 502, str(exc), headers=headers) from exc
 
     @app.post('/api/projects/{ident}/opencode/v1/chat/completions')
     def opencode_bridge_chat(ident: str, payload: dict):
@@ -654,7 +686,7 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
 
     @app.get('/api/workbench')
     def workbench():
-        return {'name': 'ToolForge', 'version': '1.3.0', 'stage': 13, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
+        return {'name': 'ToolForge', 'version': '1.4.0', 'stage': 14, 'pilot_included': (ROOT / 'start_toolforge_pilot.py').is_file()}
 
     dist = Path(static_dir or ROOT / 'frontend' / 'dist')
     if (dist / 'assets').is_dir():

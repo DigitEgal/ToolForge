@@ -8,10 +8,14 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-V1.3-b8a3ff" alt="Version V1.3">
+  <a href="README.en.md">English</a> · <strong>Deutsch</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-V1.4-b8a3ff" alt="Version V1.4">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-174%20passed-2ea44f" alt="174 Tests bestanden">
+  <img src="https://img.shields.io/badge/tests-185%20passed-2ea44f" alt="185 Tests bestanden">
   <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
 </p>
 
@@ -32,7 +36,8 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 | Bereich | Funktionen |
 |---|---|
 | **Projekte** | Anlegen, öffnen, durchsuchen, archivieren, löschen mit Bereinigungsvorschau; Kachel- und Listenansicht; Projektgruppen; ZIP-Export/Import mit Manifest; wiederherstellbare Ordnerlöschung; getrennte pip-/Chocolatey-/npm-Freigaben |
-| **Pilot** | Inkrementelle Projektanalyse mit Symbolen und Abhängigkeiten, Zielbeschreibung, Modell-Vorabcheck, prüfbarer Aufgabenplan mit Diff-Vorschau, Aufgaben-Graph, Aider-Batchausführung, Rückfragen, Pause/Fortsetzen, Reparaturstrategien, Erweiterungen ohne Neustart, Fortschrittserhalt, Projektprotokolle |
+| **Pilot** | Inkrementelle Projektanalyse mit Symbolen und Abhängigkeiten, Zielbeschreibung, optionaler Modell-Vorabcheck, prüfbarer Aufgabenplan mit Diff-Vorschau, Aufgaben-Graph, Aider-Batchausführung, Rückfragen, Pause/Fortsetzen, Reparaturstrategien, Erweiterungen ohne Neustart, Fortschrittserhalt, Projektprotokolle |
+| **Übergabe & Prüfung** | Geordnete Übergabeliste für steckengebliebene Aufgaben, unabhängige Ergebnisprüfung durch andere Modelle, Ausschluss des Erstellers, konfigurierbare Mindestzustimmungen, strenge Reparatur nach Ablehnung, Änderungen auch während eines Laufs |
 | **Modellvergleich** | Drei bis sechs Kandidaten, identische Arbeitsproben, ein oder zwei Temperaturen, anonymisierte Auswertung, Empfehlung mit ausdrücklicher Übernahme, Kontextprüfung inklusive kleiner LM-Studio-Rundungsabweichungen; empirische Messreihen mit Wiederholungen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung pro Hardware, Quantisierung und Aufgabentyp |
 | **Entwicklung** | Dateibaum und CodeMirror-Editor, konfliktgeprüftes Speichern mit Sicherungen, Python-Ausführung mit Live-Ausgabe und Abbruch, pytest/Ruff/mypy, Git-Status/Diff/ausgewählte Commits/Historie |
 | **KI-Unterstützung** | Einzeldatei-Vorschläge mit Diff und ausdrücklicher Übernahme; Erweiterungsvorschläge nach Kategorien; dokumentgestützter Hilfechat |
@@ -40,10 +45,21 @@ Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.
 | **Abnahme** | Deklarierte CLI-, lokale HTTP- und Headless-Browser-Szenarien als echte Anwendungsabnahme; getrennte Prüfung von Teständerungen mit Baseline und Review-Schritt |
 | **Recherche & Diagnose** | Recherche mit Domainfilter, geöffneten Quellen, Textbelegen und Cache; Journal; ausführliche Fehlerprotokolle mit Redaktion von Geheimnissen |
 | **Sandbox** | Optionale Docker-Ausführung für Projektbefehle und Python-Workflowknoten; Images, interne Netzwerke, Speicher-/CPU-/Prozesslimits, Loopback-Ports und Paketinstallation im Container |
-| **Bedienung** | Einheitliches V7-/V6-Branding, Dark/Light Design, Hinweiston mit Lautstärke, geführte UI- und Entwickler-Tutorials, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App; große Bereiche und Editor laden erst bei Bedarf |
+| **Bedienung** | Einheitliches V7-/V6-Branding, Dark/Light Design, Hinweiston mit Lautstärke, Sprachumschalter EN/DE für Oberfläche und Hilfe, geführte Tutorials für UI, Cockpit, Übergabe & Prüfung und Entwicklungsbereich, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App; große Bereiche und Editor laden erst bei Bedarf |
 | **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Logrotation, Plan-Sicherungen, Deinstallationsskript, optionales Tray-Symbol und vorbereiteter Windows-Installer |
 
-## Neu in V1.3
+## Neu in V1.4
+
+- **Mehrmodell-Übergabe bei steckengebliebenen Aufgaben:** Eine geordnete Liste aus `Quelle::Modell` wird der Reihe nach versucht, wenn das Hauptmodell wiederholt scheitert, hängt, ein Kontextlimit erreicht oder eine Aufgabe blockiert zurücklässt. Die Reihenfolge übersteht einen späteren Wechsel der Quellen-Vorauswahl.
+- **Unabhängige Ergebnisprüfung:** Ein oder mehrere andere Modelle bewerten bestandene Aufgaben und den Projektabschluss. Der Ersteller einer Aufgabe und das aktive Hauptmodell sind von deren Prüfung ausgeschlossen; Mindestzustimmungen und strenges Reparaturverhalten sind konfigurierbar.
+- **Im Vorabcheck und im Lauf konfigurierbar:** Übergabe- und Prüferlisten lassen sich im Vorabcheck mit der Empfehlung übernehmen und unter „Übergabe & Prüfung“ jederzeit ändern, auch während ein Auftrag läuft. Die Auswahl wird gegen den aktuellen Modellbestand geprüft.
+- **Optionaler Vorabcheck:** „Vorabcheck überspringen“ erlaubt Start und Planung ohne bestätigten Modellvergleich. Ein späterer Vorabcheck bleibt möglich; Empfehlungen werden weiterhin nur nach ausdrücklicher Übernahme aktiv.
+- **Durchgängig zweisprachig:** `EN | DE` neben Ton und Design übersetzt die gesamte Oberfläche, die Hilfedokumente, alle Tutorials sowie README und Schnellstart. Die Auswahl bleibt im Browser gespeichert; die Hilfe lädt ihre Dokumente in der gewählten Sprache.
+- **Freies Kontingent bleibt respektiert:** Jeder Prüfer erhält genau das konfigurierte Modell ohne stillen Ersatz. Eine Übergabe an ein anderes Free-Modell schafft kein neues Tageskontingent; bei Erschöpfung hält der Lauf mit einem erklärten Hinweis an.
+- **Docker-Build zuverlässig gestartet:** Vor Build-, Netzwerk- und Paketaufträgen werden Docker-CLI und Linux-Daemon geprüft. Fehlende oder gestoppte Daemons liefern eine sofortige, handlungsfähige Meldung statt eines hängenden „Auftrag: failed“; die Oberfläche aktualisiert den Status bis zum Abschluss.
+- **Durchgängig V1.4:** API und FastAPI-Metadaten melden `1.4.0`, die Workbench Stage `14`; Frontend-Paket, Installer, Startbanner, Setup-Ausgabe, Hilfe und Dokumentation nennen V1.4 beziehungsweise vierzehn Etappen.
+
+## Funktionsbasis V1.3
 
 - **OpenCode Free ohne Zusatzkonto:** Der lokal installierte OpenCode-Dienst stellt kostenlose Coding-Modelle bereit. ToolForge verbindet sich über die lokale, passwortgeschützte OpenCode-API und nutzt sie für Vorabcheck, Planung, Hilfe und als OpenAI-kompatible Brücke für Aider. Ein API-Schlüssel ist nicht nötig.
 - **Modellquellen-Presets statt Modellnamen-Tricks:** Sechs Vorauswahlen – Nur Lokal, Nur Free, Nur API, Free & Lokal, Lokal & API, Free & API – kombinieren mit MAX Quality, Preis/Leistung oder Kostensparend eine klare Quellen-Reihenfolge. Jede Quelle hat ein eigenes Modellfeld. Die aktive Quelle bleibt beim laufenden Auftrag zuerst.
@@ -164,14 +180,15 @@ python uninstall_toolforge.py --yes --keep-data
 
 ## Dokumentation
 
-- [Abnahme und Anforderungsabgleich V1.3](ABNAHME.md)
-- [Konsolidierter Testbericht V1.3 mit Archiv](TESTBERICHT.md)
+- [Abnahme und Anforderungsabgleich V1.4](ABNAHME.md)
+- [Konsolidierter Testbericht V1.4 mit Archiv](TESTBERICHT.md)
 - [Entwicklungspfad](TOOLFORGE_ROADMAP.md)
 - [LM Studio und Modell-Vorabcheck](LM_STUDIO_PRESETS.md)
 - [Start und Projekte](help/01_Start_und_Projekte.md)
 - [Modelle und Aufgaben](help/02_Modelle_und_Aufgaben.md)
 - [Entwicklungsbereich](help/03_Entwicklungsbereich.md)
 - [Recherche, Diagnose und Sandbox](help/04_Recherche_Diagnose_Sandbox.md)
+- [English help](help/en/01_Start_and_Projects.md)
 - [Windows-Installer](installer/README.md)
 - [Nächste Optimierungen](NAECHSTE_SCHRITTE.md)
 
@@ -227,6 +244,7 @@ docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
 | **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
 | **V1.2** | **V7-/V6-Branding, konsolidierter Testbericht, aufgeräumte Altlasten, Code-Splitting mit deutlich kleinerem Start-Bundle, immutable Asset-Cache und zwölfte Etappe** |
 | **V1.3** | **OpenCode Free ohne Zusatzkonto, bewusste Modellquellen-Presets statt Free-Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, zuverlässigere kleine Modelle, reparierter Desktop-Pilot und wiederholbarer Vorabcheck** |
+| **V1.4** | **Mehrmodell-Übergabe bei steckengebliebenen Aufgaben, unabhängige Ergebnisprüfung ohne Ersteller-Bias, im Vorabcheck und zur Laufzeit konfigurierbare Rollen, optionaler Vorabcheck, vollständige EN/DE-Oberfläche und Hilfe, vier Tutorials sowie diagnostizierter Docker-Build** |
 
 ## Lizenz und Credits
 

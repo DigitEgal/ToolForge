@@ -22,8 +22,8 @@ def test_health_and_empty(client):
     assert client.get('/api/health').json()=={'status':'ok'}
     assert client.get('/api/projects').json()==[]
     assert client.get('/api/groups').json()==[]
-    assert client.get('/api/workbench').json()['version']=='1.3.0'
-    assert client.get('/api/workbench').json()['stage']==13
+    assert client.get('/api/workbench').json()['version']=='1.4.0'
+    assert client.get('/api/workbench').json()['stage']==14
 
 def test_create_get_list(client):
     result=client.post('/api/projects',json={'name':'  Test ü  ','description':'Beschreibung'})
@@ -53,7 +53,7 @@ def test_version_and_static_cache_headers(tmp_path):
     (dist/'index.html').write_text('<!doctype html><title>ToolForge</title>',encoding='utf-8')
     (assets/'app-abc123.js').write_text('console.log("toolforge")',encoding='utf-8')
     app=create_app(tmp_path/'db.sqlite3',static_dir=dist)
-    assert app.version=='1.3.0'
+    assert app.version=='1.4.0'
     with TestClient(app,base_url='http://127.0.0.1:8000',headers=HEADERS) as c:
         index=c.get('/')
         assert index.status_code==200 and index.headers['cache-control']=='no-cache'
