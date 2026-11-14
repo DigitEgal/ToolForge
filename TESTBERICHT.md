@@ -10,15 +10,16 @@ Prüfdatum: 14.11.2026. Basis: ToolForge V1.3 einschließlich aller bisherigen R
 
 ```text
 .venv\Scripts\python.exe -m pytest -q tests backend/tests
-185 passed in 146.72s (0:02:26)
+189 passed in 150.36s (0:02:30)
 ```
 
-Der Lauf endete ohne Warnung. Die früher beobachtete Starlette-Deprecation im TestClient (`httpx` statt `httpx2`) blieb in diesem Durchlauf aus. Die Suite umfasst jetzt 185 Tests; neu für V1.4 sind:
+Der Lauf endete ohne Warnung. Die früher beobachtete Starlette-Deprecation im TestClient (`httpx` statt `httpx2`) blieb in diesem Durchlauf aus. Die Suite umfasst jetzt 189 Tests; neu für V1.4 sind:
 
 - `tests/test_v14.py` prüft qualifizierte Rollen-Schlüssel, das Entfernen von Duplikaten, die Ablehnung unerlaubter Quellen sowie den Review-Verdict-Parser.
 - `tests/test_v14.py::test_engine_hands_task_to_configured_model_and_restores_primary` prüft die sequenzielle Übergabe an das konfigurierte Modell, das Protokoll und die Wiederherstellung des Hauptadapters.
 - `tests/test_v14.py::test_independent_review_excludes_creator_and_gates_completion` und `test_review_rejection_triggers_repair_then_approval` prüfen den Ersteller-Ausschluss, das abschließende Projektgate und die Reparatur nach Ablehnung.
-- `backend/tests/test_api_v14.py` prüft Collaboration-Modelle und Laufzeitoptionen, die Validierung gegen den Live-Bestand, den optionalen Vorabcheck, die pinned Bridge und die Docker-Daemon-Vorprüfung.
+- `backend/tests/test_api_v14.py` prüft Collaboration-Modelle und Laufzeitoptionen, die Validierung gegen den Live-Bestand, den optionalen Vorabcheck, die pinned Bridge, die Docker-Daemon-Vorprüfung sowie Listen, Notizen, Abschalten und Löschen des Projektgedächtnisses.
+- `tests/test_memory.py` prüft Persistenz über eine neue `Store`-Instanz, Deduplizierung, Redaktion von Geheimnissen, die feste Prompt-Grenze sowie die Weitergabe von Übergabe und Reparatur an ein anderes Modell im Folgeaufruf.
 - `tests/test_v08.py::test_runtime_flags_apply_at_next_task_boundary` bleibt gültig: Recherche- und Diagnoseflags gelten weiterhin erst an der nächsten Aufgabengrenze, während Zusammenarbeitsrollen sofort übernommen werden.
 - `backend/tests/test_api.py` erwartet API-Version `1.4.0` und Workbench-Stage `14`.
 - Alle V1.3-, V1.2-, V1.1-, V1.0-, 0.8- und früheren Prüfungen bleiben in derselben Suite aktiv.
@@ -37,10 +38,10 @@ Ergebnis: TypeScript-Prüfung und Produktionsbuild erfolgreich, 61 Module transf
 | Datei | Größe | gzip |
 |---|---:|---:|
 | `index.html` | 0,52 kB | 0,34 kB |
-| CSS `index-BX8PojAs.css` | 36,62 kB | 8,13 kB |
-| Initiales JavaScript `index-DTer53tk.js` | **280,59 kB** | **87,96 kB** |
+| CSS `index-CLj5Rg2l.css` | 37,01 kB | 8,18 kB |
+| Initiales JavaScript `index-CkAYGGK5.js` | **280,59 kB** | **87,96 kB** |
 | `PilotPanel` | 78,32 kB | 22,49 kB |
-| `AdvancedPanel` | 28,06 kB | 7,92 kB |
+| `AdvancedPanel` | 31,96 kB | 9,06 kB |
 | `DeveloperPanel` | 19,30 kB | 6,60 kB |
 | `ImprovementPanel` | 6,22 kB | 2,59 kB |
 | `HelpPanel` | 4,71 kB | 1,87 kB |
@@ -63,7 +64,8 @@ Der initiale JavaScript-Block wächst durch die Lokalisierung und die neuen Roll
 | Hilfe und Tutorials | Vier englische Dokumente unter `help/en/`, `/api/help?lang=en`, vier lokalisierte Touren | Tutorial-Schritte nicht automatisiert im Browser durchgeklickt. |
 | Docker-Build | `test_sandbox_status_distinguishes_cli_and_daemon`, `test_sandbox_build_rejects_unreachable_daemon_immediately`; synchrone HTTP-422-Antwort | Kein realer Image-Build, da der Linux-Daemon in der Testumgebung nicht erreichbar war. |
 | Version und Stage | API `1.4.0`, Workbench Stage `14`, Frontend-Paket `1.4.0`, Installer `1.4` | Signierter Installer nicht gebaut. |
-| Bisherige Funktionen | Vollständige Suite: **185 bestanden**, ohne Warnung in diesem Lauf | Reale Modell-, Docker-, Aider-, Tray- und Signaturläufe bleiben offen. |
+| Projektgedächtnis | `tests/test_memory.py`, `test_project_memory_lists_notes_clears_and_can_be_disabled`; Persistenz, Dedupe, Redaktion, Prompt-Grenze und Modellwechsel | Keine Langzeitbeobachtung über viele Projekte oder manuelle Prüfung aller redigierten Geheimnismuster. |
+| Bisherige Funktionen | Vollständige Suite: **189 bestanden**, ohne Warnung in diesem Lauf | Reale Modell-, Docker-, Aider-, Tray- und Signaturläufe bleiben offen. |
 
 ### Umgebung
 

@@ -8,7 +8,17 @@ export type Settings = {
   api_model: string; api_base: string; api_key?: string; remote_api_key?: string;
   handoff_enabled: boolean; handoff_models: string[]; handoff_after_failures: number;
   review_enabled: boolean; review_models: string[]; review_min_approvals: number; review_strict: boolean;
-  skip_preflight: boolean;
+  skip_preflight: boolean; memory_enabled: boolean;
+};
+
+export type MemoryEntry = {
+  id: number; at: number; kind: string; task: string; model: string; subject: string;
+  outcome: string; detail: string; files: string[]; seen: number;
+};
+
+export type MemoryState = {
+  count: number; kinds: Record<string, number>; entries: MemoryEntry[];
+  max_records: number; storage: string;
 };
 
 export type Task = { id: string; title: string; instruction: string; acceptance: string[]; files: string[]; depends_on: string[]; priority?: number };

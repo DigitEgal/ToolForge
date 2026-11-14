@@ -3,134 +3,141 @@
 </p>
 
 <p align="center">
-  <strong>Lokale Vibe-Coding-Workbench für Python-Tools:</strong><br>
-  planen, prüfen, entwickeln, testen, versionieren und verbinden – auf deinem Rechner.
+  <strong>Local vibe-coding workbench for Python tools:</strong><br>
+  plan, verify, develop, test, version and connect – on your own machine.
 </p>
 
 <p align="center">
-  <a href="README.en.md">English</a> · <strong>Deutsch</strong>
+  <strong>English</strong> · <a href="README.de.md">Deutsch</a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-V1.4-b8a3ff" alt="Version V1.4">
   <img src="https://img.shields.io/badge/python-3.11%2B-3776ab" alt="Python 3.11+">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows und Linux">
-  <img src="https://img.shields.io/badge/tests-185%20passed-2ea44f" alt="185 Tests bestanden">
-  <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT-Lizenz">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-2f3640" alt="Windows and Linux">
+  <img src="https://img.shields.io/badge/tests-189%20passed-2ea44f" alt="189 tests passed">
+  <img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT license">
 </p>
 
 ---
 
-## Was ist ToolForge?
+## What is ToolForge?
 
-ToolForge verbindet eine Projektverwaltung mit einem kontrollierten KI-Entwicklungsablauf. Du beschreibst ein Ziel, vergleichst optional lokale Modelle in einem Vorabcheck und lässt daraus einen prüfbaren Aufgabenplan erzeugen. Aider bearbeitet die Aufgaben anschließend schrittweise; bestandene Prüfkommandos – nicht bloßer Agententext – liefern den Erfolgsnachweis.
+ToolForge combines project management with a controlled AI development workflow. You describe a goal, optionally compare local models in a preflight and have a reviewable task plan generated from it. Aider then works through the tasks step by step; passed check commands – not mere agent prose – provide the proof of success.
 
-Alles läuft lokal. Die Workbench ist standardmäßig nur unter `http://127.0.0.1:8000` erreichbar. Cloud-Dienste und ein KI-Anbieter sind für die Grundfunktionen nicht erforderlich.
+Everything runs locally. By default the workbench is reachable only at `http://127.0.0.1:8000`. Cloud services and an AI provider are not required for the core features.
 
-> **OpenCode Free:** Optional können kostenlose Modelle ohne zusätzliches Konto über den lokal installierten OpenCode-Dienst genutzt werden. Dabei verlassen die Modell-Prompts deinen Rechner in Richtung des kostenlosen OpenCode-Inferenzdienstes; Code, Pläne und Prüfungen bleiben lokal. Details unter [OpenCode Free](#opencode-free-kostenlose-modelle-ohne-konto).
+> **OpenCode Free:** Optionally, free models can be used without an additional account through the locally installed OpenCode service. In that case model prompts leave your machine for the free OpenCode inference service; code, plans and checks remain local. Details under [OpenCode Free](#opencode-free-free-models-without-an-account).
 
-> **Für wen?** Technisch erfahrene Einzelanwender, die lokale Modelle (z. B. LM Studio) und Aider nutzen möchten, dabei aber Pläne, Dateiänderungen, Tests und Freigaben im Blick behalten wollen.
+> **Who is it for?** Technically experienced individuals who want to use local models (e.g. LM Studio) and Aider while keeping plans, file changes, tests and approvals in view.
 
-## Funktionsumfang
+## Feature overview
 
-| Bereich | Funktionen |
+| Area | Features |
 |---|---|
-| **Projekte** | Anlegen, öffnen, durchsuchen, archivieren, löschen mit Bereinigungsvorschau; Kachel- und Listenansicht; Projektgruppen; ZIP-Export/Import mit Manifest; wiederherstellbare Ordnerlöschung; getrennte pip-/Chocolatey-/npm-Freigaben |
-| **Pilot** | Inkrementelle Projektanalyse mit Symbolen und Abhängigkeiten, Zielbeschreibung, optionaler Modell-Vorabcheck, prüfbarer Aufgabenplan mit Diff-Vorschau, Aufgaben-Graph, Aider-Batchausführung, Rückfragen, Pause/Fortsetzen, Reparaturstrategien, Erweiterungen ohne Neustart, Fortschrittserhalt, Projektprotokolle |
-| **Übergabe & Prüfung** | Geordnete Übergabeliste für steckengebliebene Aufgaben, unabhängige Ergebnisprüfung durch andere Modelle, Ausschluss des Erstellers, konfigurierbare Mindestzustimmungen, strenge Reparatur nach Ablehnung, Änderungen auch während eines Laufs |
-| **Modellvergleich** | Drei bis sechs Kandidaten, identische Arbeitsproben, ein oder zwei Temperaturen, anonymisierte Auswertung, Empfehlung mit ausdrücklicher Übernahme, Kontextprüfung inklusive kleiner LM-Studio-Rundungsabweichungen; empirische Messreihen mit Wiederholungen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung pro Hardware, Quantisierung und Aufgabentyp |
-| **Entwicklung** | Dateibaum und CodeMirror-Editor, konfliktgeprüftes Speichern mit Sicherungen, Python-Ausführung mit Live-Ausgabe und Abbruch, pytest/Ruff/mypy, Git-Status/Diff/ausgewählte Commits/Historie |
-| **KI-Unterstützung** | Einzeldatei-Vorschläge mit Diff und ausdrücklicher Übernahme; Erweiterungsvorschläge nach Kategorien; dokumentgestützter Hilfechat |
-| **Workflows** | Visueller Knotengraph, Validierung, CSV prüfen, Duplikate entfernen, Excel exportieren, Python-Knoten |
-| **Abnahme** | Deklarierte CLI-, lokale HTTP- und Headless-Browser-Szenarien als echte Anwendungsabnahme; getrennte Prüfung von Teständerungen mit Baseline und Review-Schritt |
-| **Recherche & Diagnose** | Recherche mit Domainfilter, geöffneten Quellen, Textbelegen und Cache; Journal; ausführliche Fehlerprotokolle mit Redaktion von Geheimnissen |
-| **Sandbox** | Optionale Docker-Ausführung für Projektbefehle und Python-Workflowknoten; Images, interne Netzwerke, Speicher-/CPU-/Prozesslimits, Loopback-Ports und Paketinstallation im Container |
-| **Bedienung** | Einheitliches V7-/V6-Branding, Dark/Light Design, Hinweiston mit Lautstärke, Sprachumschalter EN/DE für Oberfläche und Hilfe, geführte Tutorials für UI, Cockpit, Übergabe & Prüfung und Entwicklungsbereich, SSE-Aktualisierung mit Polling-Fallback, globale Rückfragen, Hilfe direkt in der App; große Bereiche und Editor laden erst bei Bedarf |
-| **Betrieb** | Verdeckter Start, eigenes Chrome-/Edge-App-Fenster mit automatischem Schließen, Stoppskript, Debugstart, Logrotation, Plan-Sicherungen, Deinstallationsskript, optionales Tray-Symbol und vorbereiteter Windows-Installer |
+| **Projects** | Create, open, search, archive, delete with cleanup preview; tile and list view; project groups; ZIP export/import with manifest; recoverable folder deletion; separate pip/Chocolatey/npm permissions |
+| **Pilot** | Incremental project analysis with symbols and dependencies, goal description, optional model preflight, reviewable task plan with diff preview, task graph, Aider batch execution, questions, pause/resume, repair strategies, extensions without restart, progress preservation, project logs |
+| **Handoff & review** | Ordered handoff list for stuck tasks, independent result review by other models, creator exclusion, configurable minimum approvals, strict repair after rejection, changes even during a run |
+| **Project memory** | Bounded, model-independent insights from earlier runs (failures, successful repairs, handoffs, review rejections, decisions and installation resolutions) in the project state database; injected into planning and task prompts, visible and clearable in the cockpit |
+| **Model comparison** | Three to six candidates, identical work samples, one or two temperatures, anonymized evaluation, recommendation with explicit acceptance, context verification including small LM Studio rounding deviations; empirical benchmarks with repetitions, tokens/s, VRAM peaks and quality spread per hardware, quantization and task type |
+| **Development** | File tree and CodeMirror editor, conflict-checked saving with backups, Python execution with live output and cancellation, pytest/Ruff/mypy, Git status/diff/selected commits/history |
+| **AI assistance** | Single-file proposals with diff and explicit acceptance; extension suggestions by category; document-grounded help chat |
+| **Workflows** | Visual node graph, validation, CSV checks, duplicate removal, Excel export, Python nodes |
+| **Acceptance** | Declared CLI, local HTTP and headless browser scenarios as real application acceptance; separate review of test changes with baseline and review step |
+| **Research & diagnostics** | Research with domain filter, opened sources, text evidence and cache; journal; detailed error logs with secret redaction |
+| **Sandbox** | Optional Docker execution for project commands and Python workflow nodes; images, internal networks, memory/CPU/process limits, loopback ports and package installation in the container |
+| **Usability** | Unified V7/V6 branding, dark/light theme, notification sound with volume, EN/DE language switch for the interface and help, guided tutorials for UI, cockpit, handoff & review and the development area, SSE updates with polling fallback, global questions, help inside the app; large areas and the editor load only on demand |
+| **Operations** | Hidden start, dedicated Chrome/Edge app window with automatic closing, stop script, debug start, log rotation, plan backups, uninstall script, optional tray icon and prepared Windows installer |
 
-## Neu in V1.4
+## New in V1.4
 
-- **Mehrmodell-Übergabe bei steckengebliebenen Aufgaben:** Eine geordnete Liste aus `Quelle::Modell` wird der Reihe nach versucht, wenn das Hauptmodell wiederholt scheitert, hängt, ein Kontextlimit erreicht oder eine Aufgabe blockiert zurücklässt. Die Reihenfolge übersteht einen späteren Wechsel der Quellen-Vorauswahl.
-- **Unabhängige Ergebnisprüfung:** Ein oder mehrere andere Modelle bewerten bestandene Aufgaben und den Projektabschluss. Der Ersteller einer Aufgabe und das aktive Hauptmodell sind von deren Prüfung ausgeschlossen; Mindestzustimmungen und strenges Reparaturverhalten sind konfigurierbar.
-- **Im Vorabcheck und im Lauf konfigurierbar:** Übergabe- und Prüferlisten lassen sich im Vorabcheck mit der Empfehlung übernehmen und unter „Übergabe & Prüfung“ jederzeit ändern, auch während ein Auftrag läuft. Die Auswahl wird gegen den aktuellen Modellbestand geprüft.
-- **Optionaler Vorabcheck:** „Vorabcheck überspringen“ erlaubt Start und Planung ohne bestätigten Modellvergleich. Ein späterer Vorabcheck bleibt möglich; Empfehlungen werden weiterhin nur nach ausdrücklicher Übernahme aktiv.
-- **Durchgängig zweisprachig:** `EN | DE` neben Ton und Design übersetzt die gesamte Oberfläche, die Hilfedokumente, alle Tutorials sowie README und Schnellstart. Die Auswahl bleibt im Browser gespeichert; die Hilfe lädt ihre Dokumente in der gewählten Sprache.
-- **Freies Kontingent bleibt respektiert:** Jeder Prüfer erhält genau das konfigurierte Modell ohne stillen Ersatz. Eine Übergabe an ein anderes Free-Modell schafft kein neues Tageskontingent; bei Erschöpfung hält der Lauf mit einem erklärten Hinweis an.
-- **Docker-Build zuverlässig gestartet:** Vor Build-, Netzwerk- und Paketaufträgen werden Docker-CLI und Linux-Daemon geprüft. Fehlende oder gestoppte Daemons liefern eine sofortige, handlungsfähige Meldung statt eines hängenden „Auftrag: failed“; die Oberfläche aktualisiert den Status bis zum Abschluss.
-- **Durchgängig V1.4:** API und FastAPI-Metadaten melden `1.4.0`, die Workbench Stage `14`; Frontend-Paket, Installer, Startbanner, Setup-Ausgabe, Hilfe und Dokumentation nennen V1.4 beziehungsweise vierzehn Etappen.
+- **Multi-model handoff for stuck tasks:** An ordered list of `source::model` entries is tried in sequence when the primary model repeatedly fails, stalls, reaches a context limit or leaves a task blocked. The order survives a later change of the source preset.
+- **Independent result review:** One or more other models assess passed tasks and the project completion. A task’s creator and the active primary model are excluded from reviewing it; minimum approvals and strict repair behaviour are configurable.
+- **Configurable in preflight and during a run:** Handoff and reviewer lists can be accepted together with the preflight recommendation and changed at any time under “Handoff & review”, even while a job is running. The selection is validated against the current model inventory.
+- **Optional preflight:** “Skip preflight” allows planning and starting without a confirmed model comparison. A later preflight remains possible; recommendations still become active only after explicit acceptance.
+- **Bilingual throughout:** `EN | DE` next to sound and theme translates the entire interface, the help documents, all tutorials as well as README and quickstart. The choice is stored in the browser; the help page loads its documents in the selected language.
+- **Free quota remains respected:** Every reviewer receives exactly the configured model without silent substitution. Handing off to another free model does not create new daily quota; when exhausted, the run stops with an explained note.
+- **Docker build starts reliably:** Docker CLI and Linux daemon are checked before build, network and package jobs. Missing or stopped daemons produce an immediate, actionable message instead of a hanging “Job: failed”; the interface keeps refreshing the status until completion.
+- **V1.4 throughout:** API and FastAPI metadata report `1.4.0`, the workbench stage is `14`; frontend package, installer, start banner, setup output, help and documentation all say V1.4 or fourteen stages.
 
-## Funktionsbasis V1.3
+## Project memory
 
-- **OpenCode Free ohne Zusatzkonto:** Der lokal installierte OpenCode-Dienst stellt kostenlose Coding-Modelle bereit. ToolForge verbindet sich über die lokale, passwortgeschützte OpenCode-API und nutzt sie für Vorabcheck, Planung, Hilfe und als OpenAI-kompatible Brücke für Aider. Ein API-Schlüssel ist nicht nötig.
-- **Modellquellen-Presets statt Modellnamen-Tricks:** Sechs Vorauswahlen – Nur Lokal, Nur Free, Nur API, Free & Lokal, Lokal & API, Free & API – kombinieren mit MAX Quality, Preis/Leistung oder Kostensparend eine klare Quellen-Reihenfolge. Jede Quelle hat ein eigenes Modellfeld. Die aktive Quelle bleibt beim laufenden Auftrag zuerst.
-- **Gemeinsames Free-Kontingent respektiert:** Alle OpenCode-Free-Modelle teilen sich ein Tageslimit. Ein Modellwechsel ist kein zusätzliches Kontingent. Bei Erschöpfung weicht ToolForge nur auf Lokal oder eine bezahlte API aus, wenn die Vorauswahl diese Quelle erlaubt; Nur Free hält mit einem erklärten Hinweis an. OpenCode-Status und eine separate Konsole werden nur auf Klick geöffnet.
-- **Mehr Zuverlässigkeit bei kleinen Modellen:** Kleine Modelle unter etwa 16 GB erhalten eine kompaktere Projektübersicht, ganze Dateien statt riskanter Diffs, strengere Formatprüfung und Syntaxfehler mit konkreten Zeilenausschnitten. Aufgabenaufteilung und frische Kontextfenster bleiben erhalten.
-- **Pilot-Schaltfläche repariert:** „Pilot öffnen“ startet jetzt tatsächlich das mitgelieferte Desktop-Fenster über die lokale Python-Umgebung; Fehlstarts werden mit Protokollpfad gemeldet. „Cockpit öffnen“ bleibt als separater Weg in die Browser-Workbench erhalten.
-- **Vorabcheck wiederholbar:** Nach Fehlern oder Planänderungen lässt sich der Vorabcheck mit den gespeicherten Kandidaten und dem Auswertungsmodell direkt erneut starten. Der letzte Bericht bleibt sichtbar, markiert veraltete Aufgabe bzw. Quellen-Vorauswahl und zeigt übersprungene Kandidaten sowie gemessene Ausweichquellen.
-- **Durchgängig V1.3:** API und FastAPI-Metadaten melden `1.3.0`, die Workbench Stage `13`; Frontend-Paket, Installer, Startbanner, Setup-Ausgabe, Hilfe und Dokumentation nennen V1.3 beziehungsweise dreizehn Etappen.
+ToolForge keeps a compact, model-independent project memory in the project state database. It records distilled facts rather than transcripts: failed checks and their error class, successful repairs and their strategies, handoffs between models, review rejections with concrete findings, user decisions and verified installation resolutions.
 
-## Funktionsbasis V1.2
+The memory is injected into later planning and task prompts with a fixed character and entry limit, so a different model or source preset starts with the project’s previous lessons instead of repeating them. Entries are deduplicated, redacted and capped at 500 records; the active model and the original creator remain visible as provenance. Under **Analysis & operations → Project memory** you can inspect the current entries, add your own note, switch the feature off for this project or clear the memory. It can be disabled under Settings or in the same panel; existing entries remain until cleared.
 
-- **Einheitliches Branding:** Das V7-Logo aus `frontend/logos` steht in Sidebar, Abschlussbildschirm und Willkommensdialog. Unten links bleibt genau ein verlinktes „by DigitEgal“, dessen Schriftzug jetzt die V6-Wortmarke als Bild nutzt; Größe und Kontrast sind auf die Sidebar abgestimmt.
-- **Schnellerer Start:** Cockpit, Hilfe, Projektverwaltung, Analyse, Entwicklungsbereich und Codeeditor werden per `React.lazy`/`Suspense` erst beim Öffnen geladen. Der initiale JavaScript-Block sinkt von rund 955 kB auf rund 261 kB; der Editor bleibt ein separater, bedarfsgeladener CodeMirror-Block.
-- **Dauerhaft cachebare Assets:** Gehashte Dateien unter `/assets/` erhalten `public, max-age=31536000, immutable`; `index.html` bleibt `no-cache`, damit ein Update sofort erkannt wird.
-- **Aufgeräumte Dokumentation:** Alle Testberichte und Umgebungsdaten stehen in einem aktuellen [TESTBERICHT.md](TESTBERICHT.md). Historische Anforderungsabgleiche liegen im Archiv; versionsspezifische Einzelberichte, alte Umgebungsdateien und nicht mehr verwendete SVG-Logo-Duplikate wurden entfernt.
+## Feature basis V1.3
 
-## Funktionsbasis V1.1
+- **OpenCode Free without an extra account:** The locally installed OpenCode service provides free coding models. ToolForge connects through the local, password-protected OpenCode API and uses it for preflight, planning, help and as an OpenAI-compatible bridge for Aider. No API key is required.
+- **Source presets instead of model-name tricks:** Six presets – Local only, Free only, API only, Free & local, Local & API, Free & API – combine with MAX quality, Price/performance or Cost saving into a clear source order. Each source has its own model field. The active source stays first while a job is running.
+- **Shared free quota respected:** All OpenCode free models share one daily limit. Switching the model is not additional quota. When exhausted, ToolForge falls back only to local or a paid API if the preset allows that source; Free only stops with an explained note. OpenCode status and a separate console open only on click.
+- **More reliability for small models:** Small models under about 16 GB receive a more compact project overview, whole files instead of risky diffs, stricter format checking and syntax errors with concrete line excerpts. Task splitting and fresh context windows remain available.
+- **Pilot button fixed:** “Open Pilot” now really starts the bundled desktop window through the local Python environment; failed starts are reported with the log path. “Open cockpit” remains a separate path into the browser workbench.
+- **Repeatable preflight:** After errors or plan changes, the preflight can be restarted directly with the saved candidates and evaluation model. The last report stays visible, marks an outdated task or source preset and shows skipped candidates and measured alternative sources.
+- **V1.3 throughout:** API and FastAPI metadata reported `1.3.0`, the workbench stage `13`; frontend package, installer, start banner, setup output, help and documentation said V1.3 or thirteen stages.
 
-- **Vollständige inkrementelle Projektanalyse:** Der Index speichert Dateisignaturen, Symbole, Importe und Abhängigkeiten; nur geänderte Dateien werden neu gelesen. Große Projekte werden in belegten, größenbegrenzten Teilschritten analysiert, inklusive Manifest und Abdeckungsanzeige.
-- **Empirische Messreihe statt Familienvorauswahl:** Wiederholte Arbeitsproben über mehrere Kontextgrößen, Tokens/s, VRAM-Spitzen und Qualitätsstreuung; Ergebnisse werden pro Hardware, Quantisierung und Aufgabentyp zwischengespeichert.
-- **Plan-Diff mit Risikovorschau:** Abhängigkeiten, Aufwand, neue Prüfungen und bereits geprüfte Teile werden vor der Übernahme verglichen. Änderungen an geprüften Aufgaben benötigen eine ausdrückliche Bestätigung; vorher entsteht eine Plan-Sicherung.
-- **Anwendungsabnahme:** Deklarierte CLI-, HTTP- und Browser-Szenarien prüfen das fertige Werkzeug als Anwendung. Teständerungen werden gegen eine Baseline als Diff ausgewiesen und gesondert freigegeben.
-- **Reproduzierbare Umgebungen:** `aider-chat==0.86.2` und der getestete Controller-Stand sind gepinnt; Umgebungssperren enthalten Paketversionen, Dateihashes und Docker-Digests. Presets lassen sich ohne API-Schlüssel exportieren und importieren.
-- **Aufgaben-Graph:** Knoten, Kanten, kritischer Pfad, bereite Aufgaben und Dateikonflikte; Prioritäten werden vor der Aufgabenauswahl übernommen. Parallele Nutzung derselben Datei braucht eine ausdrückliche Freigabe.
-- **SSE und globale Rückfragen:** Session- und globale Ereigniskanäle aktualisieren die UI ohne dauerndes Polling; langsames Polling bleibt als Fallback. Offene Rückfragen erscheinen projektübergreifend.
-- **Belegte Recherche:** Domainfilter, Ablehnung lokaler/IP-Literal-Ziele, tatsächlich geöffnete Quellen, Textbelege, siebentägiger Cache und Zuordnung zu Aufgabe oder Fehler.
-- **Betrieb und Wiederherstellung:** Projekt-Export/Import als ZIP, Logrotation, Plan-Sicherungen, Installer-Definition, Build-/Signierskript und optionales Tray-Symbol.
-- **Sandbox-Komfort:** Ressourcenregler, Image- und Netzwerkverwaltung, Loopback-Ports und pip-/npm-Paketinstallation in abgeleiteten Projektimages.
+## Feature basis V1.2
 
-Die vollständige Zuordnung steht in [ABNAHME.md](ABNAHME.md). Testumfang und Prüfgrenzen dokumentiert [TESTBERICHT.md](TESTBERICHT.md).
+- **Unified branding:** The V7 logo from `frontend/logos` appears in the sidebar, completion screen and welcome dialog. Bottom left remains exactly one linked “by DigitEgal”, whose wordmark now uses the V6 mark as an image; size and contrast are tuned to the sidebar.
+- **Faster start:** Cockpit, help, project management, analysis, development area and code editor are loaded via `React.lazy`/`Suspense` only when opened. The initial JavaScript bundle drops from about 955 kB to about 261 kB; the editor remains a separate CodeMirror bundle loaded on demand.
+- **Permanently cacheable assets:** Hashed files under `/assets/` receive `public, max-age=31536000, immutable`; `index.html` stays `no-cache` so an update is detected immediately.
+- **Tidied documentation:** All test reports and environment data live in a current [TESTBERICHT.md](TESTBERICHT.md). Historical requirement comparisons are archived; version-specific individual reports, old environment files and unused SVG logo duplicates were removed.
 
-## Installation unter Windows
+## Feature basis V1.1
 
-**Voraussetzungen**
+- **Full incremental project analysis:** The index stores file signatures, symbols, imports and dependencies; only changed files are re-read. Large projects are analysed in documented, size-limited chunks including manifest and coverage display.
+- **Empirical benchmarks instead of family preselection:** Repeated work samples across multiple context sizes, tokens/s, VRAM peaks and quality spread; results are cached per hardware, quantization and task type.
+- **Plan diff with risk preview:** Dependencies, effort, new checks and already verified parts are compared before acceptance. Changes to verified tasks require explicit confirmation; a plan backup is created beforehand.
+- **Application acceptance:** Declared CLI, HTTP and browser scenarios verify the finished tool as an application. Test changes are shown as a diff against a baseline and approved separately.
+- **Reproducible environments:** `aider-chat==0.86.2` and the tested controller state are pinned; environment locks contain package versions, file hashes and Docker digests. Presets can be exported and imported without API keys.
+- **Task graph:** Nodes, edges, critical path, ready tasks and file conflicts; priorities are applied before task selection. Parallel use of the same file requires explicit approval.
+- **SSE and global questions:** Session and global event channels update the UI without constant polling; slow polling remains a fallback. Open questions appear across projects.
+- **Evidence-based research:** Domain filter, rejection of local/IP-literal targets, actually opened sources, text evidence, seven-day cache and assignment to a task or error.
+- **Operations and recovery:** Project export/import as ZIP, log rotation, plan backups, installer definition, build/sign script and optional tray icon.
+- **Sandbox convenience:** Resource controls, image and network management, loopback ports and pip/npm package installation in derived project images.
+
+The full mapping is in [ABNAHME.md](ABNAHME.md). Test scope and limits are documented in [TESTBERICHT.md](TESTBERICHT.md).
+
+## Installation on Windows
+
+**Prerequisites**
 
 - Windows 10/11
-- Python 3.11 oder neuer
-- Internetverbindung für Setup und Pakete
-- Optional: [LM Studio](https://lmstudio.ai/) mit aktivierter Native REST API v1
-- Optional: [OpenCode](https://opencode.ai) und Node.js/npm für kostenlose Modelle ohne Zusatzkonto
-- Optional: Docker Desktop für die Sandbox
+- Python 3.11 or newer
+- Internet connection for setup and packages
+- Optional: [LM Studio](https://lmstudio.ai/) with the Native REST API v1 enabled
+- Optional: [OpenCode](https://opencode.ai) and Node.js/npm for free models without an additional account
+- Optional: Docker Desktop for the sandbox
 
-**Schritte**
+**Steps**
 
-1. ZIP in einen neuen Programmordner entpacken. Einen eventuell laufenden alten ToolForge-Server vorher beenden.
-2. `Setup_ToolForge.cmd` ausführen. Das Setup legt `.venv` für die Workbench und `.aider-venv` für Aider an und prüft Aider tatsächlich auf Version und benötigte Optionen. Ist npm vorhanden, installiert es zusätzlich optional `@opencode/cli` und startet den lokalen OpenCode-Dienst; ohne npm bleibt OpenCode einfach deaktiviert.
-3. `Start_ToolForge.cmd` öffnen. Die UI startet unter `http://127.0.0.1:8000`; unter Chrome/Edge öffnet sich ein eigenes App-Fenster.
-4. Beim ersten Start führt ein Willkommensdialog in das UI-Tutorial ein.
-5. Unter **Einstellungen → Modellquellen** eine Vorauswahl treffen, zum Beispiel **Free & Lokal**, die gewünschte Reihenfolge wählen und pro Quelle ein Modell laden. Für Nur API Basisadresse und Sitzungsschlüssel eintragen.
+1. Unpack the ZIP into a new program folder. Stop any running old ToolForge server first.
+2. Run `Setup_ToolForge.cmd`. Setup creates `.venv` for the workbench and `.aider-venv` for Aider and actually verifies Aider’s version and required options. If npm is available, it additionally installs `@opencode/cli` and starts the local OpenCode service; without npm, OpenCode simply stays disabled.
+3. Open `Start_ToolForge.cmd`. The UI starts at `http://127.0.0.1:8000`; under Chrome/Edge a dedicated app window opens.
+4. On first start a welcome dialog introduces the UI tutorial.
+5. Under **Settings → Model sources** choose a preset, for example **Free & local**, pick the desired order and load a model per source. For API only, enter the base URL and session key.
 
 ```text
-Setup_ToolForge.cmd        einmalig einrichten
-Start_ToolForge.cmd        Workbench starten
-Start_ToolForge_Debug.cmd  bei Startproblemen; Log unter runtime/startup.log
-Stop_ToolForge.cmd         Notfall-Stopp bei hängender UI
+Setup_ToolForge.cmd        one-time setup
+Start_ToolForge.cmd        start the workbench
+Start_ToolForge_Debug.cmd  for startup problems; log at runtime/startup.log
+Stop_ToolForge.cmd         emergency stop for a hanging UI
 ```
 
-Node.js ist für die normale Nutzung nicht erforderlich – das gebaute Frontend liegt bei.
+Node.js is not required for normal use – the built frontend is included.
 
-### OpenCode Free: kostenlose Modelle ohne Konto
+### OpenCode Free: free models without an account
 
-OpenCode ist ein separat installierter Coding-Agent mit lokalem Hintergrunddienst. ToolForge nutzt dessen lokale API, um kostenlose Modelle wie `deepseek-v4.1-flash-free`, `glm-5.3-flash-free` oder `minimax-m3.1-flash-free` für Vorabcheck, Planung, Hilfe und Aider zu verwenden. Es wird kein OpenCode-Konto und kein API-Schlüssel in ToolForge gespeichert.
+OpenCode is a separately installed coding agent with a local background service. ToolForge uses its local API to employ free models such as `deepseek-v4.1-flash-free`, `glm-5.3-flash-free` or `minimax-m3.1-flash-free` for preflight, planning, help and Aider. No OpenCode account and no API key are stored in ToolForge.
 
-1. `Setup_ToolForge.cmd` ausführen, falls npm vorhanden ist. Alternativ manuell `npm install -g @opencode/cli` und `opencode service start`.
-2. Unter **Einstellungen → Modellquellen → OpenCode Free** den Status prüfen, den Dienst starten oder die Konsole öffnen. Diese Aktionen laufen nur auf Klick.
-3. Ein Free-Modell auswählen und die Quellen-Vorauswahl speichern. Optional lässt sich eine bevorzugte Free-Modellreihenfolge für temporäre Modellfehler hinterlegen; sie ist kein Kontingent-Reset.
-4. Alle Free-Modelle teilen sich ein Tageslimit. Bei Erschöpfung versucht ToolForge nur dann Lokal oder eine bezahlte API, wenn die gewählte Vorauswahl diese Quelle erlaubt. Bei Nur Free wird der Lauf mit einem Hinweis angehalten; lokale Modelle bleiben unabhängig nutzbar.
+1. Run `Setup_ToolForge.cmd` if npm is available. Alternatively install manually with `npm install -g @opencode/cli` and start with `opencode service start`.
+2. Under **Settings → Model sources → OpenCode Free**, check the status, start the service or open the console. These actions run only on click.
+3. Select a free model and save the source preset. Optionally, a preferred free-model order for temporary model errors can be configured; it is not a quota reset.
+4. All free models share one daily limit. When exhausted, ToolForge only tries local or a paid API if the selected preset allows that source. With Free only the run stops with a note; local models remain independently usable.
 
-Die kostenlosen Modelle laufen über den OpenCode-Inferenzdienst. Prompts und die zur Aufgabe gehörenden Dateiauszüge werden dafür an diesen Dienst gesendet. Für vollständig lokale Verarbeitung LM Studio verwenden.
+The free models run through the OpenCode inference service. Prompts and the file excerpts belonging to the task are sent to that service. For fully local processing, use LM Studio.
 
-**Optionaler Installer und Tray:** Unter [installer/](installer/README.md) liegt eine Inno-Setup-6-Definition mit Build- und Signierskript. Der Installer installiert nach `%LOCALAPPDATA%\Programs\ToolForge`; Python 3.11 oder neuer bleibt Voraussetzung. Ohne Code-Signaturzertifikat (`TOOLFORGE_SIGN_CERT`) wird er unsigniert gebaut. Das Tray-Symbol ist optional und benötigt `pip install -r requirements-tray.txt`; ohne diese Pakete startet ToolForge normal weiter.
+**Optional installer and tray:** Under [installer/](installer/README.md) there is an Inno Setup 6 definition with build and sign script. The installer installs to `%LOCALAPPDATA%\Programs\ToolForge`; Python 3.11 or newer remains a prerequisite. Without a code-signing certificate (`TOOLFORGE_SIGN_CERT`) it is built unsigned. The tray icon is optional and requires `pip install -r requirements-tray.txt`; without these packages ToolForge still starts normally.
 
 ### Linux
 
@@ -141,60 +148,60 @@ pip install -r requirements.txt
 python start_toolforge.py
 ```
 
-Für Aider gilt derselbe getrennte Ansatz wie unter Windows; Details stehen in der Hilfe.
+Aider uses the same separate approach as on Windows; details are in the help.
 
-## Erster Arbeitsablauf
+## First workflow
 
-1. **Projekt anlegen** und einen Arbeitsordner außerhalb des ToolForge-Programmordners verbinden.
-2. **Ziel beschreiben** und im Vorabcheck drei bis sechs Modelle vorschlagen lassen – lokal aus LM Studio oder kostenlos über OpenCode Free.
-3. **Vorabcheck starten** oder direkt **„Automatisch: Vorabcheck → Empfehlung → Plan → Start“** wählen.
-4. Empfehlung prüfen, Plan ansehen und die Ausführung starten. Offene Rückfragen erscheinen im Cockpit.
-5. Bestehende Tools über **Entwicklungsbereich → Verbesserungen** erweitern, statt neu zu beginnen.
-6. Mit **Dateien & Editor**, **Ausführen & Prüfen**, **Git** und **Workflows** weiterarbeiten.
+1. **Create a project** and connect a working folder outside the ToolForge program folder.
+2. **Describe the goal** and have three to six models suggested in the preflight – local from LM Studio or free via OpenCode Free.
+3. **Start the preflight** or directly choose **“Automatic: preflight → recommendation → plan → start”**.
+4. Review the recommendation, inspect the plan and start execution. Open questions appear in the cockpit.
+5. Extend existing tools via **Development area → Improvements** instead of starting over.
+6. Continue with **Files & editor**, **Run & check**, **Git** and **Workflows**.
 
-Die Entwicklungs-Tabs folgen dem Ablauf: **Verbesserungen · Dateien & Editor · KI-Änderungen · Ausführen & Prüfen · Git · Workflows**.
+The development tabs follow the workflow: **Improvements · Files & editor · AI changes · Run & check · Git · Workflows**.
 
-## Deinstallation
+## Uninstallation
 
 ```text
 Deinstallieren_ToolForge.cmd
 ```
 
-Entfernt `.venv`, `.aider-venv`, `frontend/node_modules`, `frontend/dist`, `runtime`, `.pytest_cache` und Python-Caches. Auf Wunsch wird `%APPDATA%\ToolForgePilot` gelöscht. **Eigene Projektordner werden nie verändert.** Danach den Programmordner manuell löschen.
+Removes `.venv`, `.aider-venv`, `frontend/node_modules`, `frontend/dist`, `runtime`, `.pytest_cache` and Python caches. On request `%APPDATA%\ToolForgePilot` is deleted as well. **Your own project folders are never modified.** Afterwards delete the program folder manually.
 
-Ohne Rückfragen:
+Without prompts:
 
 ```powershell
 python uninstall_toolforge.py --yes
 python uninstall_toolforge.py --yes --keep-data
 ```
 
-## Sicherheit und Datenschutz
+## Security and privacy
 
-- **Lokal:** Serverbindung an `127.0.0.1`, CORS auf lokale Adressen begrenzt, Zugriffslogs standardmäßig aus. OpenCode Free ist optional und nutzt einen lokalen Dienst, der die Modell-Prompts an den kostenlosen OpenCode-Inferenzdienst weiterleitet.
-- **Keine stillen Cloud-Aufrufe:** Websuche ist opt-in und nutzt ausschließlich DuckDuckGo. Jeder Versuch – auch Fehler und null Treffer – landet im Projektjournal.
-- **Keine pauschalen Rechte:** pip-, Chocolatey- und npm-Installationen sind getrennt freigebbar; Prüfwerkzeuge haben eine eigene Einmal-Freigabe.
-- **Geheimnisse:** API-Schlüssel werden in Logs redigiert; ausführliche Diagnosen sind opt-in.
-- **Projektordner bleiben unangetastet:** Löschvorgänge sind auf ToolForge-eigene Daten und bestätigte Projektordner begrenzt.
-- **Docker ist optional:** Ohne Docker laufen Befehle auf dem Host. Die Containeroption ist keine vollständige Virtualisierung der Workbench.
+- **Local:** Server bound to `127.0.0.1`, CORS limited to local addresses, access logs off by default. OpenCode Free is optional and uses a local service that forwards model prompts to the free OpenCode inference service.
+- **No silent cloud calls:** Web search is opt-in and uses DuckDuckGo exclusively. Every attempt – including errors and zero results – is recorded in the project journal.
+- **No blanket permissions:** pip, Chocolatey and npm installations can be permitted separately; checking tools have their own one-time permission.
+- **Secrets:** API keys are redacted in logs; detailed diagnostics are opt-in.
+- **Project folders remain untouched:** Deletions are limited to ToolForge-owned data and confirmed project folders.
+- **Docker is optional:** Without Docker, commands run on the host. The container option is not full virtualization of the workbench.
 
-## Dokumentation
+## Documentation
 
-- [Abnahme und Anforderungsabgleich V1.4](ABNAHME.md)
-- [Konsolidierter Testbericht V1.4 mit Archiv](TESTBERICHT.md)
-- [Entwicklungspfad](TOOLFORGE_ROADMAP.md)
-- [LM Studio und Modell-Vorabcheck](LM_STUDIO_PRESETS.md)
-- [Start und Projekte](help/01_Start_und_Projekte.md)
-- [Modelle und Aufgaben](help/02_Modelle_und_Aufgaben.md)
-- [Entwicklungsbereich](help/03_Entwicklungsbereich.md)
-- [Recherche, Diagnose und Sandbox](help/04_Recherche_Diagnose_Sandbox.md)
-- [English help](help/en/01_Start_and_Projects.md)
-- [Windows-Installer](installer/README.md)
-- [Nächste Optimierungen](NAECHSTE_SCHRITTE.md)
+- [Acceptance and requirement comparison V1.4 (German)](ABNAHME.md)
+- [Consolidated test report V1.4 with archive (German)](TESTBERICHT.md)
+- [Development path (German)](TOOLFORGE_ROADMAP.md)
+- [LM Studio and model preflight (German)](LM_STUDIO_PRESETS.md)
+- [Start and Projects](help/en/01_Start_and_Projects.md)
+- [Models and Tasks](help/en/02_Models_and_Tasks.md)
+- [Development Area](help/en/03_Development_Area.md)
+- [Research, Diagnostics and Sandbox](help/en/04_Research_Diagnostics_Sandbox.md)
+- [German help](help/01_Start_und_Projekte.md) · [Quickstart](QUICKSTART.txt) · [Schnellstart DE](SCHNELLSTART.txt)
+- [Windows installer](installer/README.md)
+- [Next optimisations (German)](NAECHSTE_SCHRITTE.md)
 
-Die Hilfe ist auch direkt in der App unter **Hilfe** erreichbar.
+The help is also available directly in the app under **Help**.
 
-## Entwicklung und Tests
+## Development and tests
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -202,52 +209,52 @@ python -m pytest -q tests backend/tests
 npm --prefix frontend run build
 ```
 
-Der Frontend-Build führt `tsc --noEmit` und den Vite-Produktionsbuild aus. Die Tests verwenden isolierte Projekte und simulierte Modell-/Docker-Antworten. Reale Modellqualität, GPU-/VRAM-Verhalten, Docker Desktop, echte Aider-Läufe, Signierung und Tray müssen auf der Zielmaschine zusätzlich geprüft werden. Details und Grenzen: [TESTBERICHT.md](TESTBERICHT.md).
+The frontend build runs `tsc --noEmit` and the Vite production build. Tests use isolated projects and simulated model/Docker responses. Real model quality, GPU/VRAM behaviour, Docker Desktop, actual Aider runs, signing and tray must additionally be verified on the target machine. Details and limits: [TESTBERICHT.md](TESTBERICHT.md).
 
-### Projektstruktur
+### Project structure
 
 ```text
-backend/            FastAPI, Projekt-API, Pilot-Brücke, Workspace, Workflows
-toolforge_pilot/    Engine, Aider-Adapter, Vorabcheck, Installationen, Recovery
-frontend/src/       React-/TypeScript-Oberfläche inklusive Tutorials
-frontend/logos/     V7-Tool-Logo und V6-DigitEgal-Wortmarke
-tests/              Engine-, Pilot- und Regressionstests
-backend/tests/      API-, Datenbank- und Migrationsprüfungen
-help/               Bedienungsdokumente für die App
-installer/          Inno-Setup-Definition, Build- und Signierskript
-docs/archiv/        Historische Anforderungsabgleiche und Basisspezifikation
+backend/            FastAPI, project API, Pilot bridge, workspace, workflows
+toolforge_pilot/    Engine, Aider adapter, preflight, installations, recovery
+frontend/src/       React/TypeScript interface including tutorials
+frontend/logos/     V7 tool logo and V6 DigitEgal wordmark
+tests/              Engine, Pilot and regression tests
+backend/tests/      API, database and migration checks
+help/               user documents for the app (English under help/en)
+installer/          Inno Setup definition, build and sign script
+docs/archiv/        Historical requirement comparisons and base specification
 ```
 
-## Bekannte Grenzen
+## Known limits
 
-- LM Studio muss installiert sein und die Native REST API v1 bereitstellen. Die Messreihe empfiehlt nur eine auf dieser Hardware gemessene Stichprobe, keine allgemein beste Modellfamilie.
-- OpenCode Free benötigt eine lokale OpenCode-Installation. Die kostenlosen Modelle teilen sich ein Tageslimit; bei vollständiger Erschöpfung ist bis zum Reset kein freies Cloud-Modell verfügbar. Prompts werden dabei an den OpenCode-Inferenzdienst gesendet.
-- Der Modell-Vorabcheck und die Messreihe ersetzen keine fachliche Prüfung. Quantisierung, Treiber und andere laufende GPU-Anwendungen beeinflussen Tokens/s, VRAM-Spitzen und Qualitätsstreuung.
-- Docker, Aider, GPU-Messungen, Tray und Installer-Signierung werden nicht durch simulierte Tests ersetzt. In der dokumentierten Testumgebung lief kein Docker-Daemon; Inno Setup und `signtool` waren nicht installiert.
-- Ein vollständig eingefrorener Betriebssystemprozess muss im Taskmanager beendet werden. ToolForge beendet niemals pauschal fremde Python-Prozesse.
-- Ein Browser außerhalb des ToolForge-App-Fensters darf per Skript nicht geschlossen werden; dort erscheint ein Abschlussbildschirm.
+- LM Studio must be installed and provide the Native REST API v1. The benchmark recommends only a sample measured on this hardware, not a globally best model family.
+- OpenCode Free requires a local OpenCode installation. The free models share one daily limit; when fully exhausted no free cloud model is available until the reset. Prompts are sent to the OpenCode inference service.
+- The model preflight and benchmark do not replace professional review. Quantization, drivers and other running GPU applications influence tokens/s, VRAM peaks and quality spread.
+- Docker, Aider, GPU measurements, tray and installer signing are not replaced by simulated tests. In the documented test environment no Docker daemon was running; Inno Setup and `signtool` were not installed.
+- A fully frozen operating-system process must be ended in Task Manager. ToolForge never terminates other Python processes indiscriminately.
+- A browser outside the ToolForge app window may not be closed by script; a completion screen appears there instead.
 
-## Versionsgeschichte
+## Version history
 
-| Version | Schwerpunkt |
+| Version | Focus |
 |---|---|
-| 0.1 | Projektverwaltung, lokale Persistenz, Workbench-Grundgerüst |
-| 0.2 | Projektanalyse/Dashboard, getrennte Paketfreigaben, Installationsjournal |
-| 0.3 | Aider-Batchmodus, Plan-JSON, Modellwarnungen, Kontext/Temperatur, Diagnose, Logs |
-| 0.4 | Schleifen-/Tokenlimits, frischer Kontext, begrenzte Neuplanung, Gesamtprüfung |
-| 0.5 | Plan speichern/importieren, Projektlebenszyklus, unabhängige Aufgaben trotz Rückfragen |
-| 0.6 | Editor, Python-Ausführung, Qualitätsprüfungen, Git, KI-Diffs, Workflows, CSV/Excel-Abnahme |
-| 0.7 | Modell-Vorabcheck, Arbeitsproben, 15 Presets, 20.000 Startkontext |
-| 0.8 | Sechs Probleme und sieben Verbesserungen: Setup, Rückfragen, Fortschritt, Reparatur, Hilfe, Ton, Websuche, Diagnose |
-| 0.9 | Projektgruppen, Listenansicht, Tutorials, Branding – in V1.0 nachgezogen |
-| **V1.0** | **Pillow-Selbstreparatur, Browser-Schließen, Ein-Klick-Ablauf, Kontexttoleranz, 3–6 Kandidaten, Deinstallation** |
-| **V1.1** | **Inkrementeller Projektindex, empirische Messreihe, Plan-Diff, Anwendungsabnahme, gepinnte Umgebungen, Aufgaben-Graph, SSE, belegte Recherche, Export/Import, Installer/Tray, Sandbox-Komfort** |
-| **V1.2** | **V7-/V6-Branding, konsolidierter Testbericht, aufgeräumte Altlasten, Code-Splitting mit deutlich kleinerem Start-Bundle, immutable Asset-Cache und zwölfte Etappe** |
-| **V1.3** | **OpenCode Free ohne Zusatzkonto, bewusste Modellquellen-Presets statt Free-Modellwechsel bei Tageslimits, konfigurierbare Reihenfolge, zuverlässigere kleine Modelle, reparierter Desktop-Pilot und wiederholbarer Vorabcheck** |
-| **V1.4** | **Mehrmodell-Übergabe bei steckengebliebenen Aufgaben, unabhängige Ergebnisprüfung ohne Ersteller-Bias, im Vorabcheck und zur Laufzeit konfigurierbare Rollen, optionaler Vorabcheck, vollständige EN/DE-Oberfläche und Hilfe, vier Tutorials sowie diagnostizierter Docker-Build** |
+| 0.1 | Project management, local persistence, workbench skeleton |
+| 0.2 | Project analysis/dashboard, separate package permissions, installation journal |
+| 0.3 | Aider batch mode, plan JSON, model warnings, context/temperature, diagnostics, logs |
+| 0.4 | Loop/token limits, fresh context, limited replanning, overall verification |
+| 0.5 | Save/import plan, project lifecycle, independent tasks despite questions |
+| 0.6 | Editor, Python execution, quality checks, Git, AI diffs, workflows, CSV/Excel acceptance |
+| 0.7 | Model preflight, work samples, 15 presets, 20,000 starting context |
+| 0.8 | Six problems and seven improvements: setup, questions, progress, repair, help, sound, web search, diagnostics |
+| 0.9 | Project groups, list view, tutorials, branding – completed in V1.0 |
+| **V1.0** | **Pillow self-repair, browser closing, one-click flow, context tolerance, 3–6 candidates, uninstallation** |
+| **V1.1** | **Incremental project index, empirical benchmark, plan diff, application acceptance, pinned environments, task graph, SSE, evidence-based research, export/import, installer/tray, sandbox convenience** |
+| **V1.2** | **V7/V6 branding, consolidated test report, cleaned-up legacy, code splitting with a much smaller start bundle, immutable asset cache and twelfth stage** |
+| **V1.3** | **OpenCode Free without an extra account, deliberate source presets instead of free-model switching at daily limits, configurable order, more reliable small models, fixed desktop Pilot and repeatable preflight** |
+| **V1.4** | **Multi-model handoff for stuck tasks, independent result review without creator bias, roles configurable in preflight and at runtime, optional preflight, complete EN/DE interface and help, four tutorials and diagnosed Docker build** |
 
-## Lizenz und Credits
+## License and credits
 
-MIT-Lizenz – siehe [LICENSE](LICENSE). Copyright © 2026 **DigitEgal**.
+MIT license – see [LICENSE](LICENSE). Copyright © 2026 **DigitEgal**.
 
-ToolForge nutzt unter anderem FastAPI, Uvicorn, SQLite, React, TypeScript, Vite, CodeMirror und Aider. LM Studio, OpenCode und Docker sind optionale, separat zu installierende Werkzeuge.
+ToolForge uses among others FastAPI, Uvicorn, SQLite, React, TypeScript, Vite, CodeMirror and Aider. LM Studio, OpenCode and Docker are optional, separately installed tools.

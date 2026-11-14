@@ -1,5 +1,5 @@
 ToolForge Pilot V1.4
-English quickstart: SCHNELLSTART.en.txt
+English quickstart: QUICKSTART.txt
 
 1. Bisherigen Server beenden und ZIP in neuen Programmordner entpacken.
 2. Setup_ToolForge.cmd ausführen (Python 3.11+, Internet nötig).
@@ -14,6 +14,7 @@ English quickstart: SCHNELLSTART.en.txt
 11. Bestehende Tools über Entwicklungsbereich -> Verbesserungen erweitern.
 12. Unter Analyse & Betrieb Index, Aufgaben-Graph, Messreihe, Anwendungsabnahme, Recherche, Export/Import, Logrotation und Sandbox nutzen. Docker-Builds starten nur bei erreichbarem Linux-Daemon und melden fehlende Daemons sofort.
 13. Vor größeren Planänderungen die Diff-Vorschau prüfen; Änderungen an bereits geprüften Teilen ausdrücklich bestätigen.
+14. Analyse & Betrieb -> Projektgedächtnis: frühere Erkenntnisse prüfen, eigene Notiz ergänzen oder das Gedächtnis löschen. Es fließt begrenzt in spätere Planungen und Aufgaben ein, auch nach einem Modellwechsel.
 
 Projektgruppen und Kachel-/Listenansicht ordnen größere Projektbestände.
 Sprache: EN | DE neben Ton und Design übersetzt Oberfläche und Hilfe; die Auswahl bleibt im Browser gespeichert.
@@ -22,4 +23,4 @@ Beenden: Button ToolForge beenden oder Stop_ToolForge.cmd.
 Deinstallieren: Deinstallieren_ToolForge.cmd (eigene Projektordner bleiben erhalten).
 Optional: Tray über requirements-tray.txt; Windows-Installer unter installer/.
 Startproblem: Start_ToolForge_Debug.cmd und runtime/startup.log.
-Dokumentation: Hilfe in der UI, README.md, README.en.md, ABNAHME.md, TESTBERICHT.md.
+Dokumentation: Hilfe in der UI, README.md (English), README.de.md, ABNAHME.md, TESTBERICHT.md.

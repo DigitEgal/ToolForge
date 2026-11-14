@@ -14,6 +14,7 @@ German quickstart: SCHNELLSTART.txt
 11. Extend existing tools via Development area -> Improvements.
 12. Under Analysis & operations use index, task graph, benchmark, application acceptance, research, export/import, log rotation and sandbox. Docker builds start only with a reachable Linux daemon and report missing daemons immediately.
 13. Before larger plan changes, review the diff preview; explicitly confirm changes to already verified parts.
+14. Analysis & operations -> Project memory: inspect earlier insights, add your own note or clear the memory. It feeds later planning and tasks with a fixed limit, even after a model change.
 
 Project groups and the tile/list view organise larger project collections.
 Language: EN | DE next to sound and theme translates the interface and help; the choice is stored in the browser.
@@ -22,4 +23,4 @@ Quit: “Quit ToolForge” button or Stop_ToolForge.cmd.
 Uninstall: Deinstallieren_ToolForge.cmd (your own project folders remain).
 Optional: tray via requirements-tray.txt; Windows installer under installer/.
 Startup problem: Start_ToolForge_Debug.cmd and runtime/startup.log.
-Documentation: Help in the UI, README.md, README.en.md, ABNAHME.md, TESTBERICHT.md.
+Documentation: Help in the UI, README.md (English default), README.de.md, ABNAHME.md, TESTBERICHT.md.

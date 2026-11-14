@@ -24,7 +24,7 @@ DEFAULTS = {'aider_python': str(AIDER_PYTHON) if AIDER_PYTHON.is_file() else sys
             'api_base': 'https://api.openai.com/v1', 'api_model': '',
             'handoff_enabled': True, 'handoff_models': [], 'handoff_after_failures': 2,
             'review_enabled': True, 'review_models': [], 'review_min_approvals': 1,
-            'review_strict': True, 'skip_preflight': False,
+            'review_strict': True, 'skip_preflight': False, 'memory_enabled': True,
             'sandbox':False,'sandbox_network':'','sandbox_memory':'4g','sandbox_cpus':2,'sandbox_pids':256,'sandbox_ports':'',
             'web_search':False, 'research_domains':'', 'debug_logging':False, 'allow_pip': False, 'allow_choco': False, 'allow_npm': False, 'simulation': False}
 
@@ -335,9 +335,9 @@ class Session(AssistanceMixin):
                 if type(value) is not int or not 1 <= value <= 8:
                     raise ValueError('Wiederholungs-/Zustimmungswert muss zwischen 1 und 8 liegen.')
                 candidate[role] = value
-        for role in ('handoff_enabled', 'review_enabled', 'review_strict', 'skip_preflight'):
+        for role in ('handoff_enabled', 'review_enabled', 'review_strict', 'skip_preflight', 'memory_enabled'):
             if role in clean and type(clean[role]) is not bool:
-                raise ValueError('Zusammenarbeits-Optionen müssen boolesche Werte sein.')
+                raise ValueError('Zusammenarbeits- und Gedächtnis-Optionen müssen boolesche Werte sein.')
         api_base = str(candidate.get('api_base') or '').strip().rstrip('/')
         parsed = urllib.parse.urlsplit(api_base)
         if parsed.scheme not in ('http', 'https') or not parsed.hostname:
@@ -551,6 +551,49 @@ class Session(AssistanceMixin):
             raise ValueError('Prüfmodell lieferte eine leere Antwort.')
         return text
 
+    def memory_prompt(self, task=None, files=None, query=''):
+        if not self.settings.get('memory_enabled', True):
+            return ''
+        try:
+            return self.store.memory.prompt(task=str((task or {}).get('id') or ''),
+                                            files=files or [], query=query or '',
+                                            limit=8, max_chars=3000)
+        except (OSError, ValueError) as exc:
+            self.emit('log', 'Projektgedächtnis nicht gelesen: ' + str(exc) + '\n')
+            return ''
+
+    def memory_status(self, data=None):
+        limit = 20
+        if isinstance(data, dict):
+            try:
+                limit = max(1, min(200, int(data.get('limit', 20))))
+            except (TypeError, ValueError):
+                limit = 20
+        return self.store.memory.summary(limit)
+
+    def memory_action(self, data):
+        if self.busy:
+            raise ValueError('Projektgedächtnis erst nach dem laufenden Vorgang ändern.')
+        data = data or {}
+        action = str(data.get('action') or '')
+        if action == 'clear':
+            removed = self.store.memory.clear(str(data.get('kind') or '') or None)
+            self.publish('snapshot')
+            return {'removed': removed, **self.store.memory.summary()}
+        if action == 'delete':
+            deleted = self.store.memory.delete(data.get('id'))
+            self.publish('snapshot')
+            return {'deleted': deleted, **self.store.memory.summary()}
+        if action == 'note':
+            text = str(data.get('text') or '').strip()
+            if not text:
+                raise ValueError('Bitte eine Notiz eingeben.')
+            self.store.memory.add('note', subject=text[:240], detail=text[:2000],
+                                  model='manual', outcome='note')
+            self.publish('snapshot')
+            return {'added': True, **self.store.memory.summary()}
+        raise ValueError('Gedächtnisaktion: clear, delete oder note.')
+
     def plan_with_sources(self, goal, audit=None):
         """Create a plan through the allowed sources in preference order.
 
@@ -559,6 +602,7 @@ class Session(AssistanceMixin):
         sources that the selected preset explicitly allows.
         """
         errors = []
+        memory = self.memory_prompt(query=goal)
         for source in self.effective_sources():
             if self.cancel.is_set():
                 raise ValueError('Planung gestoppt.')
@@ -580,11 +624,12 @@ class Session(AssistanceMixin):
                         fallback=bool(self.settings.get('opencode_fallback', True)),
                         on_switch=switched,
                         on_model=lambda name: (used.__setitem__('model', name),
-                                               setattr(self, 'opencode_last_model', name)))
+                                               setattr(self, 'opencode_last_model', name)),
+                        memory=memory)
                 else:
                     base, key = ((self.settings['api_base'], self.remote_key) if source == 'api'
                                  else (self.settings['base'], self.api_key))
-                    plan = chat_plan(base, key, prepared['model'], goal, p, audit)
+                    plan = chat_plan(base, key, prepared['model'], goal, p, audit, memory)
                 self.activate_source(source, used['model'])
                 self.settings.update(context_tokens=p['context_tokens'], output_tokens=p['output_tokens'],
                                      temperature=p['temperature'])

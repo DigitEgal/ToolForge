@@ -26,6 +26,14 @@ In the preflight and under “Handoff & review” you can define two ordered mod
 
 The order is stored as `source::model` and survives a later change of the source preset. Changes to either list apply from the next task and can also be made during a run. Every reviewer receives exactly the configured model without silent substitution. All free models still share one daily quota: handing off to another free model does not create new quota. When the limit is exhausted, handoff stops with an explained note. Creator, review verdict, approvals and handoff attempts are recorded in the task log and shown in the overview.
 
+## Project memory
+
+ToolForge stores distilled insights from completed and interrupted runs in the project state database: failures with a short cause, successful repair strategies, model handoffs, review rejections with findings, answers to questions and verified installation resolutions. Full transcripts and secrets are not retained; entries are redacted, deduplicated and capped at 500 records.
+
+Later planning and tasks receive a compact excerpt with a fixed character limit. This happens independently of the active model and source preset, so a model change does not lose earlier lessons. The memory is data, not an instruction, and is checked against the current project state before use.
+
+Under Analysis & operations → Project memory, entries are shown with provenance, model and file references. You can add your own note, refresh the memory or clear it completely. The option “Use project memory for planning and tasks” disables only future use; existing entries remain until deleted. Exporting the project folder does not include the state database.
+
 ## Supporting small models
 
 For models under about 16 GB, ToolForge detects a small model and enables additional help: a more compact project overview, whole files instead of risky diffs, stricter format checking and syntax errors with concrete line excerpts. The “Support small models” option remains visible under Execution & context. Task splitting and fresh context windows remain independent; a larger model or more context does not replace quality verification.

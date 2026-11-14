@@ -498,6 +498,13 @@ def create_app(db_path=None, pilot_launcher=None, static_dir=None):
     @app.post('/api/projects/{ident}/pilot/presets/import')
     def pilot_preset_import(ident: str, data: dict): return session_for(ident).import_preset(data)
 
+    @app.get('/api/projects/{ident}/pilot/memory')
+    def pilot_memory(ident: str): return session_for(ident).memory_status()
+
+    @app.post('/api/projects/{ident}/pilot/memory')
+    def pilot_memory_action(ident: str, data: dict | None = None):
+        return session_for(ident).memory_action(data or {})
+
     @app.get('/api/projects/{ident}/pilot/operations')
     def pilot_operations(ident: str):
         from toolforge_pilot import operations

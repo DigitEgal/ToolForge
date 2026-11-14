@@ -26,7 +26,7 @@ Before a plan is applied, the preview shows changes to tasks, files, dependencie
 
 The empirical benchmark tests multiple context sizes and repetitions, tokens/s, VRAM peaks and quality spread. Results apply to the measured hardware, quantization and task. Application acceptance runs declared CLI, HTTP and browser scenarios; changed test files are shown as a diff and approved separately.
 
-**Operations** rotates diagnostic journals, lists plan backups, shows installer/tray status and supports restoration. The Windows installer is built under `installer/` and optionally signed; without a certificate it remains unsigned. Docker resources, images, networks, loopback ports and package installation are managed in the sandbox area.
+**Project memory** shows model-independent insights from earlier runs, allows your own notes and clearing; details are under Models and Tasks. **Operations** rotates diagnostic journals, lists plan backups, shows installer/tray status and supports restoration. The Windows installer is built under `installer/` and optionally signed; without a certificate it remains unsigned. Docker resources, images, networks, loopback ports and package installation are managed in the sandbox area.
 
 ## Tutorials and help
 

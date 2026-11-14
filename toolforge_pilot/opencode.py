@@ -445,10 +445,10 @@ def flatten_messages(messages):
             + '\n\n'.join(parts))
 
 
-def chat_plan(client, goal, p, audit=None, order=None, fallback=True, on_switch=None, on_model=None):
+def chat_plan(client, goal, p, audit=None, order=None, fallback=True, on_switch=None, on_model=None, memory=''):
     """Plan with free models, retrying format failures and quota fallbacks."""
     from .profiles import ContextBudgetError, estimate, input_budget, parse_plan_response, plan_system, plan_quality_issues
-    system = plan_system(p, goal)
+    system = plan_system(p, goal, memory)
     if estimate(system + goal) > input_budget(p):
         raise ContextBudgetError('Die Projektbeschreibung ist für diesen Kontext zu lang. Bitte kürzen oder Kontext erhöhen.')
     failure = ''

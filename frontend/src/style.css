@@ -140,6 +140,11 @@ dialog{width:min(570px,calc(100vw - 32px));border:1px solid var(--line);backgrou
 .graph-conflict,.backup-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px}
 .graph-conflict>div,.backup-row>span{display:grid;gap:3px;min-width:0}
 .graph-conflict small{color:var(--muted);font-size:10px}
+.memory-list{display:grid;gap:7px;margin-top:12px}
+.memory-entry{border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--panel2)}
+.memory-entry summary{cursor:pointer;font-size:11px;overflow-wrap:anywhere}
+.memory-entry small{color:var(--muted);font-size:10px}
+.memory-entry p{margin:8px 0 0;font-size:10px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
 .plan-preview{display:grid;gap:9px;margin-top:12px;border:1px solid var(--line);border-radius:11px;padding:13px;background:var(--panel2)}
 .plan-preview.risk-high{border-color:#c47c62}
 .preview-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}

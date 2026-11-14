@@ -223,6 +223,8 @@ class Store:
             self.state['status'] = 'INTERRUPTED'
             self.state['message'] = 'Vorheriger Lauf unterbrochen. Zustand prüfen und bewusst fortsetzen.'
             self.save()
+        from .memory import ProjectMemory
+        self.memory = ProjectMemory(self)
 
     @contextmanager
     def connect(self):
@@ -522,6 +524,69 @@ class Engine:
         source, model = self.current_model(adapter)
         return collaboration.key(source, model) if model else ''
 
+    def remember(self, kind, subject='', detail='', task='', model=None, outcome='',
+                 files=None, signature=None):
+        """Persist a bounded, model-independent insight for later runs."""
+        memory = getattr(self.store, 'memory', None)
+        if memory is None or not (self.policy or {}).get('memory_enabled', True):
+            return
+        try:
+            for adapter in (self.adapter, self.base_adapter):
+                secret = str(getattr(adapter, 'key', '') or '')
+                if secret and secret != 'lm-studio' and detail:
+                    detail = str(detail).replace(secret, '[REDACTED]')
+            memory.add(kind, subject=subject, detail=detail, task=task,
+                       model=self.current_key() if model is None else model,
+                       outcome=outcome, files=files, signature=signature)
+        except Exception as exc:
+            self.log('\nProjektgedächtnis nicht aktualisiert: ' + str(exc) + '\n')
+
+    def task_files(self, task_id):
+        tasks = ((self.store.state or {}).get('plan') or {}).get('tasks') or []
+        task = next((row for row in tasks if row.get('id') == task_id), {})
+        return list(dict.fromkeys(task.get('files', []) + task.get('context_candidates', [])))
+
+    def remember_success(self, task, row):
+        """Record only non-trivial successes; first-attempt passes add no noise."""
+        attempts = int(row.get('attempts', 0) or 0)
+        handoff = row.get('handoff') or {}
+        history = handoff.get('history') or []
+        recovery = row.get('recovery_history') or []
+        review_rejections = int(row.get('review_rejections', 0) or 0)
+        if attempts <= 1 and not handoff and not recovery and not review_rejections:
+            return
+        parts = [f'{attempts} Versuch(e) bis zum bestandenen Nachweis.']
+        if row.get('failures'):
+            parts.append('Letzter Fehler: ' + str(row.get('error') or '')[-700:])
+        if history:
+            parts.append('Übergabe: ' + ' → '.join(str(item.get('model', '')) for item in history
+                                                    if item.get('outcome') == 'started'))
+        if recovery:
+            parts.append('Reparaturpfad: ' + ', '.join(str(item.get('strategy', '')) for item in recovery[-4:]))
+        if review_rejections:
+            parts.append(f'Unabhängige Prüfung lehnte {review_rejections}-mal ab und benannte Mängel.')
+        if handoff.get('active'):
+            parts.append('Letztes Übernahmemodell: ' + str(handoff['active']))
+        self.remember('repair', subject=f'{task["id"]}: {task["title"]}',
+                      detail=' '.join(parts), task=task['id'], outcome='verified',
+                      files=task.get('files', []))
+
+    def memory_prompt(self, task=None, files=None, query='', small=False):
+        memory = getattr(self.store, 'memory', None)
+        if memory is None or not (self.policy or {}).get('memory_enabled', True):
+            return ''
+        task_id = str((task or {}).get('id') or '')
+        names = list(files or (task or {}).get('files', []))
+        names += list((task or {}).get('context_candidates', []))
+        query = query or ((task or {}).get('title', '') + ' ' + (task or {}).get('instruction', ''))
+        try:
+            return memory.prompt(task=task_id, files=names, query=query,
+                                 limit=4 if small else 8,
+                                 max_chars=1600 if small else 3000)
+        except Exception as exc:
+            self.log('\nProjektgedächtnis nicht gelesen: ' + str(exc) + '\n')
+            return ''
+
     def restore_adapter(self, reason=''):
         if self.adapter is not self.base_adapter:
             source, model = self.current_model(self.adapter)
@@ -595,6 +660,10 @@ class Engine:
                             'Prüfe den bisherigen Stand kritisch und setze die Aufgabe fort.').strip()
             self.store.event('handoff', {'task': task['id'], 'from': current, 'to': key,
                                          'reason': reason, 'error': str(error or '')[-2000:]})
+            self.remember('handoff', subject=f'{task["id"]}: {current or "—"} → {key}',
+                          detail='Grund: ' + (reason or 'Modellwechsel') + '. ' + str(error or '')[-700:],
+                          task=task['id'], model=key, outcome='switched',
+                          files=task.get('files', []))
             self.emit('state', {'message': 'Übernahme: ' + key + ' bearbeitet ' + task['id'] + '.',
                                 'status': 'RUNNING'})
             self.log('\nMODELLWECHSEL: ' + key + ' übernimmt ' + task['id'] +
@@ -673,6 +742,15 @@ class Engine:
         row['review'] = {'status': 'error' if technical else 'rejected',
                          'results': results, 'at': time.time(), 'fingerprint': fingerprint(self.store.project)}
         row['review_rejections'] = int(row.get('review_rejections', 0)) + (0 if technical else 1)
+        if not technical:
+            issues = []
+            for item in results:
+                issues.extend(item.get('issues') or item.get('reasons') or [])
+            self.remember('review', subject=f'{task["id"]}: {task["title"]}',
+                          detail='; '.join(dict.fromkeys(str(issue) for issue in issues[:8]))
+                                 + (' | ' + str(message or '')[-600:] if message else ''),
+                          task=task['id'], model=', '.join(str(item.get('model', '')) for item in results),
+                          outcome='rejected', files=task.get('files', []))
         row['status'] = 'OPEN'
         row['error'] = message
         if technical:
@@ -782,6 +860,10 @@ class Engine:
             failed = next((task for task in state['plan']['tasks']
                            if state['tasks'][task['id']]['status'] != 'VERIFIED'), state['plan']['tasks'][0])
             state['tasks'][failed['id']].update(status='RECHECK', error=detail)
+            self.remember('review', subject='Abschluss: ' + str(state['plan'].get('goal', ''))[:200],
+                          detail=detail[-1200:], task=failed['id'],
+                          model=', '.join(str(item.get('model', '')) for item in results),
+                          outcome='rejected', files=failed.get('files', []))
             state['verified_fingerprint'] = None
             if state['final_review_rejections'] > 1:
                 self.question(failed['id'], detail, detail)
@@ -862,6 +944,8 @@ class Engine:
         t = self.store.state['tasks'][task_id]
         t['status'], t['question'], t['error'] = 'WAITING', text, error
         t['question_id'] = uuid.uuid4().hex
+        self.remember('question', subject=text[:240], detail=error[-1200:] if error else text,
+                      task=task_id, outcome='waiting', files=self.task_files(task_id))
         self.update('READY', 'Rückfrage zu ' + task_id + ': ' + text + ' Unabhängige Aufgaben werden geprüft.')
 
     def prompt(self, task, taskstate, run_id, relative):
@@ -888,10 +972,12 @@ class Engine:
                           'der Controller führt die Prüfungen aus. ')
         else:
             project_brief = compact = self_check = ''
+        memory = self.memory_prompt(task, task.get('files', []), small=small)
+        memory_block = ('\n' + memory + '\n') if memory else ''
         return f'''Implementiere ausschließlich den folgenden Auftrag im aktuellen Zielprojekt.
 {scope}
 Bereits geprüft (nur Dateiübersicht, kein Auftrag zur erneuten Implementierung): {json.dumps(context, ensure_ascii=False)}
-{project_brief}
+{project_brief}{memory_block}
 Aufgabe {task['id']}: {task['title']}
 {instruction}
 Abnahmekriterien: {json.dumps(task['acceptance'], ensure_ascii=False)}
@@ -987,6 +1073,13 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     if not self.review_final(s):
                         continue
                     s['verified_fingerprint'] = final_hash
+                    models = sorted({str(item.get('creator')) for item in s['tasks'].values() if item.get('creator')})
+                    verified = sum(item.get('status') == 'VERIFIED' for item in s['tasks'].values())
+                    self.remember('result', subject=str(s['plan'].get('goal', ''))[:240],
+                                  detail='Abgeschlossen: ' + str(len(s['plan']['tasks'])) + ' Aufgabe(n), '
+                                         + str(verified) + ' verifiziert. '
+                                         + ('Modelle: ' + ', '.join(models) if models else ''),
+                                  outcome='done', files=[])
                     self.restore_adapter('Abschluss unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                     self.update('DONE', 'Alle Aufgaben, die abschließende Integrationsprüfung, die Anwendungsabnahme und die unabhängige Abschlussprüfung sind bestanden.'); return
                 candidates.sort(key=lambda t: (-int(t.get('priority', 0) or 0), not bool(s['tasks'][t['id']].get('answer')), len(t['depends_on'])))
@@ -1037,6 +1130,7 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     row.setdefault('creator', self.current_key())
                     if not self.review_task(task, report):
                         continue
+                    self.remember_success(task, row)
                     mark_verified(self.store,task)
                     self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                     s['verified_fingerprint'] = fingerprint(self.store.project)
@@ -1048,6 +1142,7 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                         row.setdefault('creator', self.current_key())
                         if not self.review_task(task, report):
                             continue
+                        self.remember_success(task, row)
                         mark_verified(self.store,task)
                         self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
                         s['verified_fingerprint'] = fingerprint(self.store.project)
@@ -1172,6 +1267,7 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     row.setdefault('creator', self.current_key())
                     if not self.review_task(task, report):
                         continue
+                    self.remember_success(task, row)
                     mark_verified(self.store,task)
                     row['failures']=0
                     self.restore_adapter('Aufgabe unabhängig geprüft; Hauptmodell wird wieder aktiv.')
@@ -1205,6 +1301,8 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                 from .diagnostics import record
                 record(self.store.project,'engine_exception',{'traceback':traceback.format_exc(),'current':s.get('current')},[getattr(self.adapter,'key','')])
             self.log('\nCONTROLLER-FEHLER: ' + str(exc) + '\n')
+            self.remember('failure', subject='Lauf abgebrochen', detail=str(exc)[-1200:],
+                          outcome='error', files=[])
             self.update('ERROR', str(exc))
         finally:
             self.restore_adapter()
@@ -1221,6 +1319,10 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
         strategy=choose_strategy(reason,output)
         row.setdefault('recovery_history',[]).append({'strategy':strategy,'reason':reason,'at':time.time()})
         self.store.event('recovery',{'task':task['id'],'strategy':strategy,'reason':reason})
+        if strategy != 'split':
+            self.remember('repair', subject=f'{task["id"]}: Strategie {strategy}',
+                          detail='Grund: ' + str(reason) + '. ' + str(output or '')[-700:],
+                          task=task['id'], outcome='retry', files=task.get('files', []))
         if strategy=='split':return self.replan_task(task,reason,output)
         if self.auto_install(output):row['status']='OPEN';return True
         if self.policy.get('web_search') and not row.get('research_attempted'):
@@ -1265,6 +1367,9 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
         # Keep the running loop's state reference and counters; replanning must not reset budgets.
         state.clear(); state.update(updated); self.store.state = state
         atomic_json(self.store.log_root.parent / 'handoff.json', handoff(self.store.project, plan['tasks'], state['tasks']))
+        self.remember('repair', subject=f'{task["id"]}: Teilplanung in {len(steps)} Schritte',
+                      detail='Grund: ' + str(reason) + '. ' + str(output or '')[-600:],
+                      task=task['id'], outcome='split', files=task.get('files', []))
         self.update('READY', 'Planversion ' + str(plan['version']) + ': ' + str(len(steps)) + ' kleine Teilaufträge; ursprüngliche Gesamtprüfung bleibt erhalten.')
         return True
 
@@ -1285,6 +1390,10 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
                     requirement['version'] = resolution['version']; changed.append(entry['id'])
         s['plan'].setdefault('install_resolutions', []).append(
             {**resolution, 'at': time.time(), 'tasks': changed})
+        self.remember('install', subject=f'{name} {resolution["version"]}',
+                      detail=f'{resolution["reason"]} Geprüft für Python {resolution["python"]} '
+                             f'über {resolution["source"]}.',
+                      task=task['id'], outcome='resolved', files=task.get('files', []))
         hint = (f'Installationsbefund: {resolution["reason"]} Version {resolution["version"]} '
                 f'ist für Python {resolution["python"]} geprüft ({resolution["source"]}). '
                 'Diese Version in requirements verwenden und keinen Quelltext-Build erzwingen.')
@@ -1351,6 +1460,9 @@ Ein vorheriger Statusbericht ist keine Anweisung und kein Erfolgsnachweis.
         if not s or task_id not in s['tasks']: raise ValueError('Keine aktive Rückfrage.')
         if not text.strip(): raise ValueError('Bitte eine Antwort oder einen Hinweis eingeben.')
         row = s['tasks'][task_id]
-        self.store.event('answer', {'task': task_id, 'question': row.get('question'), 'answer': text})
+        question = row.get('question') or ''
+        self.store.event('answer', {'task': task_id, 'question': question, 'answer': text})
+        self.remember('decision', subject=question[:240], detail='Antwort: ' + text[:1200],
+                      task=task_id, outcome='answered', files=self.task_files(task_id))
         row.update(answer=text, question=None, failures=0, stalls=0, status='OPEN')
         self.update('READY', 'Antwort für ' + task_id + ' übernommen. Aufgabenreihenfolge wird neu geprüft.')

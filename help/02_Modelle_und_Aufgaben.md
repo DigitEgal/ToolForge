@@ -21,6 +21,13 @@ Im Vorabcheck und unter „Übergabe & Prüfung“ lassen sich zwei geordnete Mo
 
 Die Reihenfolge wird als `Quelle::Modell` gespeichert und bleibt bei einem späteren Wechsel der Quellen-Vorauswahl erhalten. Änderungen an beiden Listen gelten ab dem nächsten Auftrag und sind auch während eines Laufs möglich. Jeder Prüfer erhält genau das konfigurierte Modell ohne stillen Ersatz. Alle Free-Modelle teilen sich weiterhin ein Tageskontingent: Eine Übergabe an ein anderes Free-Modell schafft kein neues Kontingent. Bei erschöpftem Limit hält die Übergabe mit einem erklärten Hinweis an. Ersteller, Prüfurteil, Zustimmungen und Übergabeversuche stehen im Aufgabenprotokoll und in der Übersicht.
 
+## Projektgedächtnis
+ToolForge speichert verdichtete Erkenntnisse aus abgeschlossenen und abgebrochenen Läufen in der Projekt-Zustandsdatenbank: Fehler mit kurzer Ursache, erfolgreiche Reparaturstrategien, Modellübergaben, Prüfablehnungen mit Befunden, Antworten auf Rückfragen und geprüfte Installationslösungen. Vollständige Protokolle und Geheimnisse werden nicht übernommen; Einträge sind redigiert, dedupliziert und auf 500 Stück begrenzt.
+
+Bei späteren Planungen und Aufgaben wird ein kompakter Auszug mit festem Zeichenlimit eingefügt. Das geschieht unabhängig vom aktiven Modell und von der Quellen-Vorauswahl; nach einem Modellwechsel gehen die bisherigen Erkenntnisse deshalb nicht verloren. Das Gedächtnis ist Datenmaterial, keine Anweisung, und wird vor jeder Verwendung gegen den aktuellen Projektstand geprüft.
+
+Unter Analyse & Betrieb → Projektgedächtnis stehen die Einträge mit Herkunft, Modell und Dateibezug. Dort lässt sich eine eigene Notiz ergänzen, das Gedächtnis aktualisieren oder vollständig löschen. Die Option „Projektgedächtnis für Planung und Aufgaben verwenden“ schaltet nur die künftige Verwendung ab; vorhandene Einträge bleiben bis zum Löschen erhalten. Der Export des Projektordners enthält die Zustandsdatenbank nicht.
+
 ## Kleine Modelle unterstützen
 Für Modelle unter etwa 16 GB erkennt ToolForge ein kleines Modell und aktiviert zusätzliche Hilfen: kompaktere Projektübersicht, ganze Dateien statt riskanter Diffs, strengere Formatprüfung und Syntaxfehler mit konkreten Zeilenausschnitten. Die Option „Kleine Modelle unterstützen“ bleibt unter Ausführung & Kontext sichtbar. Aufgabenaufteilung und frische Kontextfenster bleiben davon unabhängig; ein größeres Modell oder mehr Kontext ersetzt die Qualitätsprüfung nicht.
 

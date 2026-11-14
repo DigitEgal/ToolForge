@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Snapshot } from './pilotTypes';
+import type { MemoryState, Snapshot } from './pilotTypes';
 import { useI18n } from './i18n';
 
 type RequestFn = <T>(path: string, data?: unknown, method?: string) => Promise<T>;
@@ -58,12 +58,17 @@ export default function AdvancedPanel({ base, snapshot, busy, request, action, r
   const [importPath, setImportPath] = useState('');
   const [importOverwrite, setImportOverwrite] = useState(false);
   const [sandbox, setSandbox] = useState<SandboxState | null>(null);
+  const [memory, setMemory] = useState<MemoryState | null>(null);
+  const [memoryNote, setMemoryNote] = useState('');
   const [packageManager, setPackageManager] = useState('pip');
   const [packageName, setPackageName] = useState('');
   const [packageVersion, setPackageVersion] = useState('');
 
   async function loadSandbox() {
     try { setSandbox(await request<SandboxState>(base + '/sandbox')); } catch { setSandbox(null); }
+  }
+  async function loadMemory() {
+    try { setMemory(await request<MemoryState>(base + '/memory')); } catch { setMemory(null); }
   }
   const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
   async function sandboxAction(path: string, data: unknown = {}) {
@@ -80,7 +85,7 @@ export default function AdvancedPanel({ base, snapshot, busy, request, action, r
     }
     throw new Error(t('Der Sandbox-Auftrag meldet nach fünf Minuten noch keinen Abschluss. Protokoll prüfen.', 'The sandbox job has not completed after five minutes. Check the log.'));
   }
-  useEffect(() => { void loadSandbox(); }, []);
+  useEffect(() => { void loadSandbox(); void loadMemory(); }, []);
   const priorities: Record<string, number> = Object.fromEntries(graph.nodes.map(node => [node.id, node.priority]));
   async function graphUpdate(data: Record<string, unknown>) {
     await request(base + '/graph', data);
@@ -93,6 +98,11 @@ export default function AdvancedPanel({ base, snapshot, busy, request, action, r
   const sandboxBadge = sandbox?.docker_available
     ? t('Docker bereit', 'Docker ready')
     : sandbox?.docker_cli ? t('Daemon nicht erreichbar', 'Daemon unreachable') : t('Docker fehlt', 'Docker missing');
+  const memoryLabels: Record<string, string> = {
+    failure: t('Fehler', 'Failure'), repair: t('Reparatur', 'Repair'), handoff: t('Übergabe', 'Handoff'),
+    review: t('Prüfung', 'Review'), decision: t('Entscheidung', 'Decision'), install: t('Installation', 'Installation'),
+    result: t('Ergebnis', 'Result'), question: t('Rückfrage', 'Question'), note: t('Notiz', 'Note')
+  };
 
   return <div className="advanced-panel">
     <section className="panel">
@@ -102,6 +112,18 @@ export default function AdvancedPanel({ base, snapshot, busy, request, action, r
       {index.last_change && <p className="field-hint">{t('Letzte Aktualisierung', 'Last update')}: {index.last_change.changed_count || 0} {t('geändert', 'changed')}, {index.last_change.removed_count || 0} {t('entfernt', 'removed')}, {index.last_change.unchanged || 0} {t('unverändert', 'unchanged')}.</p>}
       <div className="inline-actions"><button className="button secondary" disabled={busy} onClick={() => void action(async () => { await request(base + '/index', { force: true }); await refresh(); })}>{t('Index vollständig neu lesen', 'Re-read the full index')}</button><button className="button primary" disabled={busy} onClick={() => void action(runAnalysis)}>{t('Vollständigen Analyseverlauf erzeugen', 'Generate full analysis run')}</button></div>
       {analysis && <div className="analysis-report"><p><strong>{t('Abdeckung:', 'Coverage:')}</strong> {analysis.coverage.files_included} / {analysis.coverage.files_total} {t('Dateien', 'files')} · {analysis.coverage.percent}% {t('des lesbaren Quelltexts', 'of readable source')} · {t('Budget', 'Budget')} {analysis.coverage.budget_chars.toLocaleString(locale)} {t('Zeichen', 'characters')}.</p><progress max="100" value={analysis.coverage.percent} /><details><summary>{t(`Teilschritte und Abdeckung (${analysis.chunks.length} Textblöcke)`, `Chunks and coverage (${analysis.chunks.length} text blocks)`)}</summary>{analysis.batches.map(row => <p key={row.file}>{row.included ? '✓' : '○'} {row.file} · {row.parts} {t('Teil(e)', 'part(s)')}</p>)}</details></div>}
+    </section>
+
+    <section className="panel">
+      <div className="panel-title"><h2>{t('Projektgedächtnis', 'Project memory')}</h2><span className="stage-badge">{memory?.count || 0} / {memory?.max_records || 500}</span></div>
+      <p>{t('Modellunabhängige Erkenntnisse aus früheren Läufen: Fehler, erfolgreiche Reparaturen, Übergaben, Prüfablehnungen, Entscheidungen und Installationslösungen. Der Block wird begrenzt in Planung und Aufgabenprompts eingefügt; ein Modellwechsel verliert ihn nicht. Vertrauliche Angaben werden vor dem Speichern redigiert.', 'Model-independent insights from earlier runs: failures, successful repairs, handoffs, review rejections, decisions and installation resolutions. The block is injected into planning and task prompts with a fixed limit; a model change does not lose it. Secrets are redacted before storage.')}</p>
+      <label className="check-label"><input type="checkbox" checked={snapshot.settings.memory_enabled} disabled={busy} onChange={event => { const checked = event.target.checked; void action(async () => { await request(base + '/settings', { memory_enabled: checked }); await refresh(); }); }} />{t('Projektgedächtnis für Planung und Aufgaben verwenden', 'Use project memory for planning and tasks')}</label>
+      <div className="inline-actions"><button className="button secondary" disabled={busy} onClick={() => void action(loadMemory)}>{t('Gedächtnis aktualisieren', 'Refresh memory')}</button><button className="button danger" disabled={busy || !memory?.count} onClick={() => void action(async () => { if (!window.confirm(t('Alle gespeicherten Erkenntnisse dieses Projekts löschen?', 'Delete all stored insights for this project?'))) return; setMemory(await request<MemoryState>(base + '/memory', { action: 'clear' })); await refresh(); })}>{t('Gedächtnis löschen', 'Clear memory')}</button></div>
+      <div className="settings-grid"><label className="field">{t('Eigene Notiz für spätere Läufe', 'Own note for later runs')}<textarea value={memoryNote} disabled={busy} onChange={event => setMemoryNote(event.target.value)} placeholder={t('z. B. Dieses Projekt verwendet pytest und keine unittest-Suite.', 'e.g. This project uses pytest, not a unittest suite.')} /></label></div>
+      <div className="inline-actions"><button className="button primary" disabled={busy || !memoryNote.trim()} onClick={() => void action(async () => { setMemory(await request<MemoryState>(base + '/memory', { action: 'note', text: memoryNote })); setMemoryNote(''); await refresh(); })}>{t('Notiz speichern', 'Save note')}</button></div>
+      {!!memory?.kinds && <p className="field-hint">{Object.entries(memory.kinds).map(([kind, count]) => `${memoryLabels[kind] || kind}: ${count}`).join(' · ')}</p>}
+      {!!memory?.entries.length && <div className="memory-list">{memory.entries.map(row => <details className="memory-entry" key={row.id}><summary><strong>{memoryLabels[row.kind] || row.kind}</strong> · {row.subject || row.detail.slice(0, 140)}{row.model ? <small> · {row.model}</small> : null}<small> · {stamp(row.at, locale)}</small></summary>{row.detail && <p>{row.detail}</p>}{!!row.files.length && <p className="field-hint">{row.files.join(', ')}</p>}{row.seen > 1 && <p className="field-hint">{t('Mehrfach beobachtet', 'Observed multiple times')}: {row.seen}</p>}</details>)}</div>}
+      {memory && !memory.count && <p className="field-hint">{t('Noch keine Erkenntnisse gespeichert. Nach dem ersten Lauf erscheinen hier automatisch verwertbare Befunde.', 'No insights stored yet. After the first run, reusable findings appear here automatically.')}</p>}
     </section>
 
     <section className="panel">

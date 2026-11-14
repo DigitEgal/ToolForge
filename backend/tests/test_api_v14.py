@@ -104,6 +104,30 @@ def test_preflight_validates_role_models_against_live_inventory(client, tmp_path
     assert 'nicht verfügbar' in result.json()['detail']
 
 
+def test_project_memory_lists_notes_clears_and_can_be_disabled(client, tmp_path):
+    ident, folder, session = project(client, tmp_path)
+    base = f'/api/projects/{ident}/pilot'
+    session.store.memory.add('failure', subject='Alter Fehler', detail='a.py konnte nicht geparst werden.',
+                             task='a', model='local::small', files=['a.py'])
+    status = client.get(base + '/memory')
+    assert status.status_code == 200, status.text
+    body = status.json()
+    assert body['count'] == 1 and body['entries'][0]['subject'] == 'Alter Fehler'
+
+    note = client.post(base + '/memory', json={'action': 'note', 'text': 'Immer pytest verwenden.'})
+    assert note.status_code == 200, note.text
+    assert note.json()['count'] == 2
+
+    disabled = client.post(base + '/settings', json={'memory_enabled': False})
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()['settings']['memory_enabled'] is False
+
+    cleared = client.post(base + '/memory', json={'action': 'clear'})
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()['count'] == 0
+    assert client.post(base + '/memory', json={'action': 'unknown'}).status_code == 422
+
+
 def test_pinned_bridge_route_rejects_unknown_source(client, tmp_path):
     ident, folder, session = project(client, tmp_path)
     assert client.get(f'/api/projects/{ident}/opencode/v1/source/nope/models').status_code == 404
